@@ -110,6 +110,7 @@ Opción (1-8):
 ./git-sidekick.sh restore    # Restaurar a un snapshot
 ./git-sidekick.sh snapshot   # Crear un snapshot rápido
 ./git-sidekick.sh clean      # Limpiar snapshots viejos
+./git-sidekick.sh merge <origen> <destino> <nivel>  # Merge protegido (1=simple, 2=estricto)
 ./git-sidekick.sh help       # Mostrar ayuda
 ```
 
@@ -156,6 +157,7 @@ Trabajás con una **sesión**: cada vez que empezás una tarea, iniciás; cuando
 | `restore`| Lista snapshots y restaura eligiendo uno con `git reset --hard`.      |
 | `snapshot`| Crea un snapshot rápido sin abrir sesión (punto de rescate).          |
 | `clean`  | Borra snapshots antiguos con confirmación previa.                     |
+| `merge`  | Mergea origen → destino con protección (nivel 1 o 2). |
 | `help`   | Muestra la ayuda del script.                                            |
 | (nada)   | Abre el menú interactivo.                                              |
 
@@ -185,6 +187,7 @@ Trabajás con una **sesión**: cada vez que empezás una tarea, iniciás; cuando
 | _"Restaurá al último snapshot"_ | `./git-sidekick.sh restore` |
 | _"Cerrá la sesión con mensaje fix: validación del formulario"_ | `./git-sidekick.sh close` → commitea con ese mensaje, crea snapshot de cierre |
 | _"Limpiá snapshots viejos"_ | `./git-sidekick.sh clean` |
+| _"Mergeá feature-login en main con protección estricta"_ | `./git-sidekick.sh merge feature-login main 2` → snapshot de seguridad, confirma doble, mergea y pucha |
 | _"¿En qué estado está todo?"_ | `./git-sidekick.sh status` |
 
 ### Ejemplo de sesión asistida

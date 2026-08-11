@@ -532,6 +532,7 @@ mostrar_ayuda() {
     echo "  restore  - Restaurar punto"
     echo "  snapshot - Rescate rápido"
     echo "  clean    - Limpiar viejos"
+    echo "  merge    - Merge protegido (origen destino nivel)"
     echo "  help     - Esta ayuda"
     echo ""
     echo "Sin argumentos: modo interactivo"
@@ -551,8 +552,9 @@ mostrar_menu() {
     echo "6) LIMPIAR snapshots"
     echo "7) AYUDA"
     echo "8) SALIR"
+    echo "9) FUSIONAR (merge protegido)"
     echo "------------------------------------------------"
-    read -p "Opción (1-8): " opt
+    read -p "Opción (1-9): " opt
     case $opt in
         1) start_session ;;
         2) mostrar_estado ;;
@@ -562,6 +564,13 @@ mostrar_menu() {
         6) limpiar_snapshots ;;
         7) mostrar_ayuda ;;
         8) echo "👋 Saliendo." ;;
+        9)
+            local _m_origen _m_destino _m_nivel
+            read -p "Rama origen: " _m_origen
+            read -p "Rama destino: " _m_destino
+            read -p "Nivel de protección (1/2): " _m_nivel
+            merge_protegido "$_m_origen" "$_m_destino" "$_m_nivel"
+            ;;
         *) echo -e "${RED}❌ Opción no válida${NC}" ;;
     esac
 }
@@ -576,6 +585,7 @@ main() {
             restore) restaurar_snapshot ;;
             snapshot) crear_snapshot ;;
             clean) limpiar_snapshots ;;
+            merge) shift; merge_protegido "$@" ;;
             help|--help|-h) mostrar_ayuda ;;
             *) echo -e "${RED}❌ Comando desconocido: $1${NC}"; mostrar_ayuda ;;
         esac
