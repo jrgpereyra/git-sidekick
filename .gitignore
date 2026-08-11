@@ -1,0 +1,6 @@
+# Archivos de contexto
+.git-sidekick-context
+# Archivos de bitácora (opcional, si querés versionarlos)
+.git-worklog.md
+# Directorios de respaldo (si los hay)
+backups/
