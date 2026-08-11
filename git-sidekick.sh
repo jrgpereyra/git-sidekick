@@ -426,7 +426,99 @@ cambiar_rama() {
     echo -e "${GREEN}✅ Cambiado a rama '$target_branch'.${NC}"
     return 0
 }
-merge_protegido() { echo "merge_protegido: pendiente"; }
+merge_protegido() {
+    local origen="$1"
+    local destino="$2"
+    local nivel="${3:-}"
+    local confirmacion
+
+    if [ "$nivel" != "1" ] && [ "$nivel" != "2" ]; then
+        echo -e "${RED}❌ Nivel de protección inválido. Use 1 (simple) o 2 (estricto).${NC}"
+        return 1
+    fi
+
+    local rama_original
+    rama_original=$(git rev-parse --abbrev-ref HEAD)
+
+    if ! git show-ref --verify --quiet "refs/heads/$origen"; then
+        echo -e "${RED}❌ La rama '$origen' no existe localmente.${NC}"
+        return 1
+    fi
+    if ! git show-ref --verify --quiet "refs/heads/$destino"; then
+        echo -e "${RED}❌ La rama '$destino' no existe localmente.${NC}"
+        return 1
+    fi
+
+    if [ "$nivel" = "2" ]; then
+        if ! cambiar_rama "$destino"; then
+            return 1
+        fi
+        local out tag_guardia
+        out=$(crear_snapshot "pre-merge-de-${origen}-a-${destino}" work)
+        tag_guardia=$(echo "$out" | sed 's/\x1b\[[0-9;]*m//g' | sed -n 's/.*Snapshot creado: //p')
+        if [ -n "$tag_guardia" ]; then
+            echo -e "${YELLOW}🛡️ Snapshot de seguridad creado: ${tag_guardia}${NC}"
+        else
+            echo -e "${RED}❌ No se pudo crear el snapshot de seguridad.${NC}"
+            return 1
+        fi
+        echo -e "${CYAN}📋 Commits a fusionar ($origen → $destino):${NC}"
+        git log --oneline "${destino}..${origen}" | head -30
+        read -p "⚠️ ¿Estás seguro de que querés mergear $origen → $destino? [Enter=sí]: " confirmacion
+        if [ "$confirmacion" = "n" ] || [ "$confirmacion" = "N" ]; then
+            echo "Operación cancelada. Volviendo a '$rama_original'."
+            git checkout "$rama_original" 2>/dev/null
+            return 1
+        fi
+        read -p "⚠️ ¿REALMENTE seguro? Esta acción no se puede deshacer fácilmente. [Enter=sí]: " confirmacion
+        if [ "$confirmacion" = "n" ] || [ "$confirmacion" = "N" ]; then
+            echo "Operación cancelada. Volviendo a '$rama_original'."
+            git checkout "$rama_original" 2>/dev/null
+            return 1
+        fi
+    else
+        read -p "¿Querés mergear $origen → $destino? [Enter=sí]: " confirmacion
+        if [ "$confirmacion" = "n" ] || [ "$confirmacion" = "N" ]; then
+            echo "Operación cancelada."
+            git checkout "$rama_original" 2>/dev/null
+            return 1
+        fi
+    fi
+
+    if [ "$(git rev-parse --abbrev-ref HEAD)" != "$destino" ]; then
+        if ! cambiar_rama "$destino"; then
+            return 1
+        fi
+    fi
+
+    if git merge "$origen" --no-edit; then
+        echo -e "${GREEN}✅ Merge completado sin conflictos.${NC}"
+    else
+        echo -e "${RED}❌ Hubo conflictos. Resolvelos manualmente y luego ejecutá: git merge --continue${NC}"
+        return 1
+    fi
+
+    if [ "$nivel" = "2" ]; then
+        local conf
+        read -p "¿Querés subir los cambios de '$destino' a la nube? [Enter=sí]: " conf
+        if [ -z "$conf" ] || [ "$conf" = "s" ] || [ "$conf" = "S" ] || [ "$conf" = "y" ] || [ "$conf" = "Y" ]; then
+            if git push origin "$destino"; then
+                echo -e "${GREEN}✅ '$destino' subido a la nube.${NC}"
+            else
+                echo -e "${RED}❌ Error al subir '$destino' a la nube.${NC}"
+            fi
+        fi
+    fi
+
+    local conf2
+    read -p "¿Volver a la rama original '$rama_original'? [Enter=sí]: " conf2
+    if [ -z "$conf2" ] || [ "$conf2" = "s" ] || [ "$conf2" = "S" ] || [ "$conf2" = "y" ] || [ "$conf2" = "Y" ]; then
+        cambiar_rama "$rama_original" 2>/dev/null
+    fi
+
+    echo -e "${GREEN}✅ Merge $origen → $destino completado.${NC}"
+    return 0
+}
 
 # --- Función de ayuda ---
 mostrar_ayuda() {
