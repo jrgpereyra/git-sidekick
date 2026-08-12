@@ -85,20 +85,27 @@ Ejecutalo sin argumentos y navegá el menú con números:
 ./git-sidekick.sh
 ```
 
+> **Ataques rápidos en modo interactivo:** `s` iniciar sesión | `c` cerrar sesión | `q` salir; opciones 9/10/11 para merges preconfigurados y uno personalizado.
+
+
 ```
 ------------------------------------------------
 🎮 git-sidekick v0.1.0
+📍 Rama actual: → main
 ------------------------------------------------
-1) INICIAR sesión
+1) INICIAR sesión        (atajo: s)
 2) VER ESTADO
-3) CERRAR sesión
+3) CERRAR sesión         (atajo: c)
 4) RESTAURAR punto
 5) SNAPSHOT (rescate)
 6) LIMPIAR snapshots
 7) AYUDA
-8) SALIR
+8) SALIR                 (atajo: q)
+9) ACTUALIZAR dev con main (main → dev)  [nivel 1]
+10) PUBLICAR dev a main    (dev → main)  [nivel 2]
+11) FUSIONAR personalizado
 ------------------------------------------------
-Opción (1-8):
+Opción (1-11) [s/c/q]:
 ```
 
 ### Comandos directos

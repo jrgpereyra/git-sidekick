@@ -449,10 +449,29 @@ merge_protegido() {
         return 1
     fi
 
+    # --- Resumen visual + confirmación única (aplica al menú y al CLI) ---
+    echo -e "${YELLOW}⚠️ Vas a fusionar '$origen' → '$destino' con protección nivel $nivel.${NC}"
     if [ "$nivel" = "2" ]; then
+        echo -e "${YELLOW}- Se hará un snapshot de seguridad en '$destino' antes del merge.${NC}"
+    fi
+    echo -e "${CYAN}📋 Commits a fusionar ($origen → $destino):${NC}"
+    git log --oneline "${destino}..${origen}" | head -30
+    read -p "¿Confirmar? [Enter=sí]: " confirmacion
+    if [ "$confirmacion" = "n" ] || [ "$confirmacion" = "N" ]; then
+        echo -e "${YELLOW}Operación cancelada. Volviendo a '$rama_original'.${NC}"
+        git checkout "$rama_original" 2>/dev/null
+        return 1
+    fi
+
+    # Asegurarse de estar en la rama destino (usar cambiar_rama)
+    if [ "$(git rev-parse --abbrev-ref HEAD)" != "$destino" ]; then
         if ! cambiar_rama "$destino"; then
             return 1
         fi
+    fi
+
+    # Snapshot de seguridad (nivel 2), después de confirmar y antes del merge
+    if [ "$nivel" = "2" ]; then
         local out tag_guardia
         out=$(crear_snapshot "pre-merge-de-${origen}-a-${destino}" work)
         tag_guardia=$(echo "$out" | sed 's/\x1b\[[0-9;]*m//g' | sed -n 's/.*Snapshot creado: //p')
@@ -460,33 +479,6 @@ merge_protegido() {
             echo -e "${YELLOW}🛡️ Snapshot de seguridad creado: ${tag_guardia}${NC}"
         else
             echo -e "${RED}❌ No se pudo crear el snapshot de seguridad.${NC}"
-            return 1
-        fi
-        echo -e "${CYAN}📋 Commits a fusionar ($origen → $destino):${NC}"
-        git log --oneline "${destino}..${origen}" | head -30
-        read -p "⚠️ ¿Estás seguro de que querés mergear $origen → $destino? [Enter=sí]: " confirmacion
-        if [ "$confirmacion" = "n" ] || [ "$confirmacion" = "N" ]; then
-            echo "Operación cancelada. Volviendo a '$rama_original'."
-            git checkout "$rama_original" 2>/dev/null
-            return 1
-        fi
-        read -p "⚠️ ¿REALMENTE seguro? Esta acción no se puede deshacer fácilmente. [Enter=sí]: " confirmacion
-        if [ "$confirmacion" = "n" ] || [ "$confirmacion" = "N" ]; then
-            echo "Operación cancelada. Volviendo a '$rama_original'."
-            git checkout "$rama_original" 2>/dev/null
-            return 1
-        fi
-    else
-        read -p "¿Querés mergear $origen → $destino? [Enter=sí]: " confirmacion
-        if [ "$confirmacion" = "n" ] || [ "$confirmacion" = "N" ]; then
-            echo "Operación cancelada."
-            git checkout "$rama_original" 2>/dev/null
-            return 1
-        fi
-    fi
-
-    if [ "$(git rev-parse --abbrev-ref HEAD)" != "$destino" ]; then
-        if ! cambiar_rama "$destino"; then
             return 1
         fi
     fi
@@ -533,43 +525,67 @@ mostrar_ayuda() {
     echo "  snapshot - Rescate rápido"
     echo "  clean    - Limpiar viejos"
     echo "  merge    - Merge protegido (origen destino nivel)"
+    echo "    uso:    merge <origen> <destino> <1|2>"
     echo "  help     - Esta ayuda"
     echo ""
+    echo "Atajes: s=start, c=close, q=salir (modo interactivo)"
     echo "Sin argumentos: modo interactivo"
     echo "========================================="
 }
 
 # --- Menú principal ---
 mostrar_menu() {
+    local _rama_actual
+    _rama_actual=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
     echo "------------------------------------------------"
     echo -e "${BLUE}🎮 git-sidekick v0.1.0${NC}"
+    if [ -n "$_rama_actual" ]; then
+        echo -e "${YELLOW}📍 Rama actual: → $_rama_actual${NC}"
+    fi
     echo "------------------------------------------------"
-    echo "1) INICIAR sesión"
+    echo "1) INICIAR sesión        (atajo: s)"
     echo "2) VER ESTADO"
-    echo "3) CERRAR sesión"
+    echo "3) CERRAR sesión         (atajo: c)"
     echo "4) RESTAURAR punto"
     echo "5) SNAPSHOT (rescate)"
     echo "6) LIMPIAR snapshots"
     echo "7) AYUDA"
-    echo "8) SALIR"
-    echo "9) FUSIONAR (merge protegido)"
+    echo "8) SALIR                 (atajo: q)"
+    echo "9) ACTUALIZAR dev con main (main → dev)  [nivel 1]"
+    echo "10) PUBLICAR dev a main    (dev → main)  [nivel 2]"
+    echo "11) FUSIONAR personalizado"
     echo "------------------------------------------------"
-    read -p "Opción (1-9): " opt
+    read -p "Opción (1-11) [s/c/q]: " opt
     case $opt in
-        1) start_session ;;
+        1|[sS]) start_session ;;
         2) mostrar_estado ;;
-        3) close_session ;;
+        3|[cC]) close_session ;;
         4) restaurar_snapshot ;;
         5) crear_snapshot ;;
         6) limpiar_snapshots ;;
         7) mostrar_ayuda ;;
-        8) echo "👋 Saliendo." ;;
-        9)
-            local _m_origen _m_destino _m_nivel
-            read -p "Rama origen: " _m_origen
-            read -p "Rama destino: " _m_destino
-            read -p "Nivel de protección (1/2): " _m_nivel
-            merge_protegido "$_m_origen" "$_m_destino" "$_m_nivel"
+        8|[qQ]) echo "👋 Saliendo." ;;
+        9) merge_protegido "main" "dev" "1" ;;
+        10) merge_protegido "dev" "main" "2" ;;
+        11)
+            local _ramas=() _i=1 _actual _r _num_o _num_d _niv_m _orig_m _dest_m
+            _actual=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+            echo -e "${BLUE}📋 Ramas disponibles:${NC}"
+            while IFS= read -r _r; do
+                [ -z "$_r" ] && continue
+                if [ "$_r" = "$_actual" ]; then
+                    echo "  $_i) $_r *"
+                else
+                    echo "  $_i) $_r"
+                fi
+                _ramas+=("$_r"); _i=$((_i+1))
+            done < <(git for-each-ref --format='%(refname:short)' refs/heads/)
+            read -p "Número de rama origen: " _num_o
+            read -p "Número de rama destino: " _num_d
+            read -p "Nivel de protección (1/2): " _niv_m
+            _orig_m="${_ramas[$((_num_o-1))]}"
+            _dest_m="${_ramas[$((_num_d-1))]}"
+            merge_protegido "$_orig_m" "$_dest_m" "$_niv_m"
             ;;
         *) echo -e "${RED}❌ Opción no válida${NC}" ;;
     esac
