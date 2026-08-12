@@ -526,6 +526,7 @@ mostrar_ayuda() {
     echo "  clean    - Limpiar viejos"
     echo "  merge    - Merge protegido (origen destino nivel)"
     echo "    uso:    merge <origen> <destino> <1|2>"
+    echo "  --install-alias - Instala el alias 'gk' en ~/.bash_aliases"
     echo "  help     - Esta ayuda"
     echo ""
     echo "Atajes: s=start, c=close, q=salir (modo interactivo)"
@@ -592,6 +593,67 @@ mostrar_menu() {
 }
 
 # --- Punto de entrada ---
+# --- Instalación de alias ---
+install_alias() {
+    local script_path alias_file alias_line existing resp tmp
+    # Ruta absoluta del script (realpath > readlink > fallback sobre $0)
+    if command -v realpath >/dev/null 2>&1; then
+        script_path=$(realpath "$0" 2>/dev/null)
+    fi
+    if [ -z "$script_path" ]; then
+        script_path=$(readlink -f "$0" 2>/dev/null)
+    fi
+    if [ -z "$script_path" ]; then
+        case "$0" in
+            /*) script_path="$0" ;;
+            *)  script_path="$PWD/$0" ;;
+        esac
+        [ -x "$script_path" ] || script_path="$PWD/git-sidekick.sh"
+    fi
+
+    alias_file="$HOME/.bash_aliases"
+    alias_line="alias gk=\"$script_path\""
+
+    # Crear el archivo si no existe
+    if [ ! -f "$alias_file" ]; then
+        mkdir -p "$(dirname "$alias_file")"
+        cat > "$alias_file" <<'EOF'
+# ~/.bash_aliases - alias personalizados
+# Este archivo es cargado por ~/.bashrc
+# (creado automáticamente por git-sidekick)
+EOF
+        echo -e "${GREEN}✅ Creado $alias_file${NC}"
+    fi
+
+    # ¿El alias 'gk' ya existe? -> preguntar antes de sobrescribir
+    if existing=$(grep -n '^alias gk=' "$alias_file" 2>/dev/null) && [ -n "$existing" ]; then
+        echo -e "${YELLOW}⚠️ El alias 'gk' ya existe en $alias_file:${NC}"
+        echo "    $existing"
+        read -p "¿Sobrescribir? [Enter=sí/n]" resp
+        case "$resp" in
+            n|N|no|No)
+                echo -e "${YELLOW}Cancelado. El alias no se modificó.${NC}"
+                return 1
+                ;;
+        esac
+        # Reemplazar la línea existente (portable, sin sed -i)
+        tmp=$(mktemp)
+        grep -v '^alias gk=' "$alias_file" > "$tmp"
+        printf '%s\n' "$alias_line" >> "$tmp"
+        mv "$tmp" "$alias_file"
+    else
+        printf '%s\n' "$alias_line" >> "$alias_file"
+    fi
+
+    echo -e "${GREEN}✅ Alias 'gk' instalado en $alias_file:${NC}"
+    echo "    $alias_line"
+    echo ""
+    echo -e "${CYAN}Recargá tu shell para usarlo:${NC}"
+    echo "    source ~/.bashrc"
+    echo "Ejemplo:  gk start"
+    return 0
+}
+
 main() {
     if [ $# -gt 0 ]; then
         case $1 in
@@ -602,6 +664,7 @@ main() {
             snapshot) crear_snapshot ;;
             clean) limpiar_snapshots ;;
             merge) shift; merge_protegido "$@" ;;
+            --install-alias) install_alias ;;
             help|--help|-h) mostrar_ayuda ;;
             *) echo -e "${RED}❌ Comando desconocido: $1${NC}"; mostrar_ayuda ;;
         esac

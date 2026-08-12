@@ -14,6 +14,7 @@
 - [Características](#características)
 - [Requisitos](#requisitos)
 - [Instalación](#instalación)
+- [Alias para uso rápido](#alias-para-uso-rápido)
 - [Uso básico](#uso-básico)
   - [Modo interactivo](#modo-interactivo)
   - [Comandos directos](#comandos-directos)
@@ -74,6 +75,32 @@ ln -s "$PWD/git-sidekick.sh" /usr/local/bin/git-sidekick
 > A partir de ahí podés invocar `git-sidekick` desde cualquier directorio que contenga un repo Git.
 
 ---
+
+## 🚀 Alias para uso rápido
+
+Instalá un alias de una sola palabra para invocar el script sin escribir la ruta completa cada vez:
+
+```bash
+./git-sidekick.sh --install-alias
+```
+
+El comando:
+- crea `~/.bash_aliases` (con encabezado) si no existe.
+- agrega o actualiza la línea `alias gk="/ruta/absoluta/git-sidekick.sh"`.
+- si el alias ya existe, te pregunta si querés sobrescribir.
+- al final indica `source ~/.bashrc` para recargar la configuración.
+
+Ejemplos de uso:
+
+```bash
+gk start                  # iniciar sesión
+gk close                  # cerrar sesión
+gk status                 # ver estado de la rama
+gk merge feat main 1      # merge protegido nivel 1
+gk help                   # esta ayuda
+```
+
+> El alias apunta a la ruta absoluta del script en el momento de la instalación; si el script lo movés o renombrás, volvé a correr `--install-alias` para actualizarlo.
 
 ## Uso básico
 
