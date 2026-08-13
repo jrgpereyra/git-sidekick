@@ -99,6 +99,7 @@ La configuración es estática dentro del script (prefijos de tags, nombres de r
 ### 4.1 Numeración en listas
 - **Problema:** Los snapshots y ramas se listan sin numerar, dificultando la selección en modo interactivo.
 - **Solución:** Numerar automáticamente las opciones y permitir seleccionar por número.
+- **Estado:** ✅ Implementado en v0.2.0 para `start_session` (ramas), `restaurar_snapshot` (snapshots), `inicializar_repo` (opciones) y `merge` opción 11 (ramas personalizadas).
 
 ### 4.2 Autocompletado de ramas
 - **Problema:** El usuario debe escribir el nombre completo de la rama.
@@ -112,15 +113,32 @@ La configuración es estática dentro del script (prefijos de tags, nombres de r
 - **Problema:** Algunos errores son crípticos (ej. `"Error al crear la rama"`).
 - **Solución:** Mensajes descriptivos con contexto y sugerencias de solución. Ejemplo:
   - `"❌ No se pudo crear la rama 'feature-x' porque ya existe. Usá 'feature-x-v2' o cambiá de rama con 'dev'."`
+- **Estado:** ✅ Implementado en v0.2.0 (mensajes con emoji, contexto y sugerencias).
 
 ### Tareas concretas
-- [ ] Numerar listas de snapshots en `restore`, `clean` y `status`.
+- [x] Numerar listas de snapshots en `restore`, `clean` y `status`.
 - [ ] Agregar completado de nombres de rama con `compgen` o `fzf`.
 - [ ] Implementar `--dry-run` en todos los subcomandos.
-- [ ] Reescribir todos los mensajes de error con contexto y sugerencias.
+- [x] Reescribir todos los mensajes de error con contexto y sugerencias.
 
 ### Prioridad
 ⭐⭐ (Media — mejora la experiencia sin cambiar la lógica)
+
+---
+
+## 🚀 Inicialización automática de repositorios (v0.2.0 — COMPLETADO)
+
+> **Implementado en v0.2.0**
+
+- **Detección automática:** si no hay repo Git, el script ofrece inicializar uno.
+- **Rama por defecto configurable:** `main` o `master` (default `main`).
+- **Commit inicial vacío:** `git commit --allow-empty -m "Initial commit"` asegura que HEAD apunte a un commit válido.
+- **Conexión remota con CLI:** si `gh` (GitHub) o `glab` (GitLab) está instalado, crea el repo y push con un solo comando.
+- **Conexión manual:** si no hay CLI, muestra instrucciones paso a paso y permite conectar con una URL.
+- **Agnosticismo de nube:** soporta GitHub, GitLab, Bitbucket u otra plataforma.
+- **Resumen final:** muestra ruta, rama, commit inicial, remoto y CLI detectada.
+- **Comando `info`:** `./git-sidekick.sh info` para inicializar o ver estado en cualquier momento.
+- **`--install-alias`:** instala el alias `gk` para invocar el script desde cualquier lugar.
 
 ---
 
@@ -129,7 +147,7 @@ La configuración es estática dentro del script (prefijos de tags, nombres de r
 | Fase | Contenido | Est. |
 |------|-----------|------|
 | **F1** | `.git-sidekickrc` + parser + ejemplos | 2 días |
-| **F2** | Numeración, autocompletado, `--dry-run`, errores claros | 2 días |
+| **F2** | ✅ Numeración + errores claros (v0.2.0); falta autocompletado + `--dry-run` | 2 días |
 | **F3** | Análisis de diff + mensajes en español + bitácora narrativa | 3 días |
 | **F4** | Soporte DDEV/Drupal (snapshot BD, drush cex) | 3 días |
 | **F5** | Tests (`bats-core`), integración y release v2.0.0 | 2 días |
@@ -147,6 +165,15 @@ Al final de la v2, el usuario podrá:
 3. Trabajar en un proyecto Drupal/DDEV con snapshots de BD automáticos.
 4. Previsualizar cambios con `--dry-run` antes de ejecutar.
 5. Cerrar la sesión y obtener un resumen narrativo en español de lo hecho.
+
+---
+
+## 🌐 Integración con CLIs de despliegue (v2 o v3)
+
+- **Astro, Vercel, Netlify, etc.:** opción para invocar CLIs externas (`vercel deploy`, `netlify deploy`, etc.) desde `git-sidekick` o desde un script compañero.
+- **No reinventar la rueda:** usar las herramientas oficiales y solo orquestar el flujo.
+- **Ideal para equipos:** estandarizar el despliegue desde el mismo asistente de Git.
+- **Posible implementación:** detectar el tipo de proyecto (Astro, Next.js, etc.) y ofrecer los comandos de despliegue correspondientes.
 
 ---
 
