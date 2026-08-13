@@ -546,26 +546,50 @@ start_session() {
     local rama_actual
     rama_actual=$(git rev-parse --abbrev-ref HEAD)
 
-    local respuesta_rama
-    read -p "¿En qué rama vas a trabajar? (main/dev/actual) [actual]: " respuesta_rama
+    # Listar ramas disponibles numeradas
+    echo -e "${CYAN}📋 Ramas disponibles:${NC}"
+    local ramas=() _i=1 _r
+    while IFS= read -r _r; do
+        [ -z "$_r" ] && continue
+        if [ "$_r" = "$rama_actual" ]; then
+            echo "  $_i) $_r *"
+        else
+            echo "  $_i) $_r"
+        fi
+        ramas+=("$_r")
+        _i=$((_i+1))
+    done < <(git branch --format='%(refname:short)')
+    echo "  0) Crear nueva rama..."
 
-    local rama
-    if [ -z "$respuesta_rama" ]; then
-        rama="$rama_actual"
-    else
-        rama="$respuesta_rama"
+    local seleccion
+    read -p "Seleccioná una rama (0-${#ramas[@]}) [1]: " seleccion
+    if [ -z "$seleccion" ]; then
+        seleccion=1
     fi
 
-    if [ "$rama" = "$rama_actual" ]; then
-        :
-    elif git show-ref --verify --quiet "refs/heads/$rama"; then
-        if ! cambiar_rama "$rama"; then
+    local rama
+    if [ "$seleccion" = "0" ]; then
+        read -p "Nombre de la nueva rama: " rama
+        if [ -z "$rama" ]; then
+            echo -e "${RED}❌ Debés especificar un nombre.${NC}"
             return 1
         fi
-    else
         if ! git checkout -b "$rama" 2>/dev/null; then
             echo -e "${RED}❌ Error al crear la rama '$rama'.${NC}"
             return 1
+        fi
+    else
+        if ! [[ "$seleccion" =~ ^[0-9]+$ ]] || [ "$seleccion" -lt 1 ] || [ "$seleccion" -gt "${#ramas[@]}" ]; then
+            echo -e "${RED}❌ Selección inválida.${NC}"
+            return 1
+        fi
+        rama="${ramas[$((seleccion-1))]}"
+        if [ "$rama" = "$rama_actual" ]; then
+            :
+        else
+            if ! cambiar_rama "$rama"; then
+                return 1
+            fi
         fi
     fi
 

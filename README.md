@@ -221,7 +221,11 @@ Trabajás con una **sesión**: cada vez que empezás una tarea, iniciás; cuando
 ```bash
 # 1️⃣ Empezar a trabajar en una rama nueva
 ./git-sidekick.sh start
-# → "¿En qué rama vas a trabajar? (main/dev/actual) [actual]: dev"
+# → 📋 Ramas disponibles:
+#    1) dev *
+#    2) main
+#    0) Crear nueva rama...
+# → Seleccioná una rama (0-2) [1]: 1
 # → "¿Etiqueta para la sesión? (opcional): arreglo-login"
 # → crea el branch 'dev', hace un checkpoint y un snapshot work/2026-08-11_14-30-arreglo-login
 
@@ -296,7 +300,12 @@ Trabajás con una **sesión**: cada vez que empezás una tarea, iniciás; cuando
 Usuario: iniciá sesión en feature/carrito de compras
 IA:      ejecuto ./git-sidekick.sh start
 Script:  📍 Rama actual: [main]
-         ¿En qué rama vas a trabajar? (main/dev/actual) [actual]: feature/carrito
+         📋 Ramas disponibles:
+           1) develop
+           2) main *
+           0) Crear nueva rama...
+         Seleccioná una rama (0-2): 0
+         Nombre de la nueva rama: feature/carrito
          ¿Etiqueta para la sesión? (opcional): carrito
          ✅ SESIÓN INICIADA en [feature/carrito]
             Tag creado: work/2026-08-11_14-30-carrito
