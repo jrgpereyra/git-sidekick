@@ -63,6 +63,10 @@ inicializar_repo() {
         return 1
     fi
     git branch -M "$rama_default" 2>/dev/null
+    COMMIT_INICIAL="❌"
+    if git commit --allow-empty -m "Initial commit" 2>/dev/null; then
+        COMMIT_INICIAL="✅"
+    fi
     echo -e "${GREEN}✅ Repositorio Git inicializado.${NC}"
 
     # Preguntar local o remoto
@@ -259,6 +263,7 @@ _mostrar_resumen_init() {
     echo -e "${CYAN}📋 Resumen de inicialización${NC}"
     echo "   📁 Repo local:      $(pwd)"
     echo "   🌿 Rama por defecto: $rama"
+    echo "   📝 Commit inicial:  ${COMMIT_INICIAL:-✅} 'Initial commit'"
     if [ -n "$remote_url" ]; then
         echo "   🔗 Remoto:        $remote_url"
     else
