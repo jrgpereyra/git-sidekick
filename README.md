@@ -1,7 +1,7 @@
 # git-sidekick
 
 ![License](https://img.shields.io/badge/License-MIT-blue.svg)
-![Version](https://img.shields.io/badge/version-0.1.0-orange.svg)
+![Version](https://img.shields.io/badge/version-0.2.0-orange.svg)
 ![Hecho con](https://img.shields.io/badge/hecho%20con-Bash-4979e0.svg)
 
 > **Asistente universal de Git para novatos.**  
@@ -76,6 +76,65 @@ ln -s "$PWD/git-sidekick.sh" /usr/local/bin/git-sidekick
 
 ---
 
+## 🚀 Inicialización automática de repositorios
+
+> **Nueva en v0.2.0**
+
+Si ejecutás `git-sidekick` en una carpeta **sin repositorio Git**, el script detecta la situación y le propone al usuario inicializar uno de forma interactiva.
+
+### Flujo
+
+```
+📁 No encontré un repositorio Git en esta carpeta. ¿Querés inicializar uno ahora? [Enter=sí]:
+  ↳ Enter/s → git init
+  ↳ n → Cancelado.
+
+¿Rama por defecto? (main/master) [main]:
+  ↳ Enter → main (o el nombre que ingresés)
+
+¿Querés trabajar solo en local o conectarlo a un remoto? (local/remoto) [local]:
+  ↳ local → ✅ Listo
+  ↳ remoto → ¿Crear nuevo o usar existente? (crear/usar) [crear]:
+    ↳ crear → Plataforma (github/gitlab/bitbucket/otro) [github]
+    ↳ usar → Ingresar URL del remoto directamente
+```
+
+### Características
+
+- **Detección automática de CLI**: si tenés `gh` (GitHub CLI) o `glab` (GitLab CLI) instalado, el script crea el repo y lo conecta con un solo comando.
+- **Instrucciones paso a paso**: si la CLI no está instalada, muestra instrucciones manuales y permite conectar el remoto ingresando la URL.
+- **Rama por defecto configurable**: elegís `main` o `master` al momento de la inicialización.
+- **Resumen final**: al finalizar, muestra un resumen con la ruta, rama, remoto y CLI detectada.
+
+### Ejemplo: inicialización rápida con GitHub
+
+```bash
+$ ./git-sidekick.sh
+📁 No encontré un repositorio Git en esta carpeta. ¿Querés inicializar uno ahora? [Enter=sí]:
+¿Rama por defecto? (main/master) [main]:
+¿Querés trabajar solo en local o conectarlo a un remoto? (local/remoto) [local]: remoto
+¿Querés crear un repositorio nuevo o usar uno existente? (crear/usar) [crear]: crear
+Plataforma (github/gitlab/bitbucket/otro) [github]:
+Nombre del repositorio: mi-nuevo-proyecto
+¿Público o privado? (public/private) [public]:
+📋 Resumen de inicialización
+   📁 Repo local:      /home/usuario/mi-nuevo-proyecto
+   🌿 Rama por defecto: main
+   🔗 Remoto:        https://github.com/usuario/mi-nuevo-proyecto.git
+   🛠 CLI:           gh version 2.45.0
+✅ Listo para trabajar.
+```
+
+### Comando `info`
+
+Para forzar la inicialización o ver el estado del repo en cualquier momento:
+
+```bash
+./git-sidekick.sh info
+```
+
+---
+
 ## 🚀 Alias para uso rápido
 
 Instalá un alias de una sola palabra para invocar el script sin escribir la ruta completa cada vez:
@@ -94,6 +153,7 @@ Ejemplos de uso:
 
 ```bash
 gk start                  # iniciar sesión
+gk info                   # ver estado o inicializar repo
 gk close                  # cerrar sesión
 gk status                 # ver estado de la rama
 gk merge feat main 1      # merge protegido nivel 1
@@ -193,6 +253,7 @@ Trabajás con una **sesión**: cada vez que empezás una tarea, iniciás; cuando
 | `clean`  | Borra snapshots antiguos con confirmación previa.                     |
 | `merge`  | Mergea origen → destino con protección (nivel 1 o 2). |
 | `help`   | Muestra la ayuda del script.                                            |
+| `info`   | Inicializa repo + conexión remota si no existe, o muestra estado.     |
 | (nada)   | Abre el menú interactivo.                                              |
 
 ---

@@ -2,7 +2,7 @@
 
 # =============================================================================
 # git-sidekick.sh - Asistente universal de Git para novatos
-# Versión: 0.1.0 (esqueleto inicial)
+# Versión: 0.2.0
 # Licencia: MIT
 # =============================================================================
 
@@ -24,9 +24,258 @@ check_git() {
     if git rev-parse --git-dir > /dev/null 2>&1; then
         return 0
     else
-        echo -e "${RED}❌ No estás en un repositorio Git.${NC}"
+        echo -e "${RED}❌ No encontré un repositorio Git en esta carpeta.${NC}"
+        inicializar_repo
+        local result=$?
+        if [ $result -ne 0 ]; then
+            return 1
+        fi
+        # Verificar que el repo se creó correctamente
+        if ! git rev-parse --git-dir > /dev/null 2>&1; then
+            echo -e "${RED}❌ No se pudo inicializar el repositorio. Abortando.${NC}"
+            return 1
+        fi
+        return 0
+    fi
+}
+
+# --- Función de inicialización automática ---
+inicializar_repo() {
+    local resp rama_default modo opcion plataforma nombre_repo
+    local visibilidad tipo cli_cmd cli_info remote_url platform_info extra
+
+    # Preguntar si inicializar
+    read -p "📁 No encontré un repositorio Git en esta carpeta. ¿Querés inicializar uno ahora? [Enter=sí]: " resp
+    if [ -n "$resp" ] && [ "$resp" != "s" ] && [ "$resp" != "S" ] && [ "$resp" != "y" ] && [ "$resp" != "Y" ]; then
+        echo "Cancelado."
         return 1
     fi
+
+    # Preguntar rama por defecto
+    read -p "¿Rama por defecto? (main/master) [main]: " rama_default
+    if [ -z "$rama_default" ]; then
+        rama_default="main"
+    fi
+
+    # Inicializar repo
+    if ! git init 2>/dev/null; then
+        echo -e "${RED}❌ Error al inicializar el repositorio.${NC}"
+        return 1
+    fi
+    git branch -M "$rama_default" 2>/dev/null
+    echo -e "${GREEN}✅ Repositorio Git inicializado.${NC}"
+
+    # Preguntar local o remoto
+    read -p "¿Querés trabajar solo en local o conectarlo a un remoto? (local/remoto) [local]: " modo
+    if [ -z "$modo" ]; then
+        modo="local"
+    fi
+
+    if [ "$modo" = "local" ]; then
+        _mostrar_resumen_init "$rama_default" "" "" "" ""
+        return 0
+    fi
+
+    # Modo remoto: crear nuevo o usar existente
+    read -p "¿Querés crear un repositorio nuevo o usar uno existente? (crear/usar) [crear]: " opcion
+    if [ -z "$opcion" ]; then
+        opcion="crear"
+    fi
+
+    if [ "$opcion" = "crear" ]; then
+        read -p "Plataforma (github/gitlab/bitbucket/otro) [github]: " plataforma
+        if [ -z "$plataforma" ]; then
+            plataforma="github"
+        fi
+
+        read -p "Nombre del repositorio: " nombre_repo
+        if [ -z "$nombre_repo" ]; then
+            echo -e "${RED}❌ Debés especificar un nombre para el repositorio.${NC}"
+            platform_info="$plataforma"
+            _mostrar_resumen_init "$rama_default" "" "$platform_info" "" "$nombre_repo (sin nombre)"
+            return 0
+        fi
+
+        read -p "¿Público o privado? (public/private) [public]: " visibilidad
+        if [ -z "$visibilidad" ]; then
+            visibilidad="public"
+        fi
+        tipo="--public"
+        if [ "$visibilidad" = "private" ]; then
+            tipo="--private"
+        fi
+
+        # Detectar CLI según plataforma
+        cli_cmd=""
+        cli_info=""
+        case "$plataforma" in
+            github)
+                if command -v gh >/dev/null 2>&1; then
+                    cli_cmd="gh"
+                    cli_info=$(gh --version 2>/dev/null | head -1)
+                fi
+                ;;
+            gitlab)
+                if command -v glab >/dev/null 2>&1; then
+                    cli_cmd="glab"
+                    cli_info=$(glab --version 2>/dev/null | head -1)
+                fi
+                ;;
+        esac
+
+        # Mostrar resumen de lo que se hará
+        echo ""
+        echo -e "${YELLOW}📋 Resumen de inicialización${NC}"
+        echo "   📁 Repo local:      $(pwd)"
+        echo "   🌿 Rama por defecto: $rama_default"
+        echo "   🔗 Plataforma:      $plataforma"
+        echo "   📦 Repositorio:     $nombre_repo"
+        echo "   👁️ Visibilidad:     $visibilidad"
+        if [ -n "$cli_info" ]; then
+            echo "   🛠 CLI:            $cli_info"
+        else
+            echo "   🛠 CLI:            No detectada"
+        fi
+        echo ""
+
+        # Confirmar
+        local confirm
+        read -p "¿Confirmar creación? [Enter=sí]: " confirm
+        if [ -n "$confirm" ] && [ "$confirm" != "s" ] && [ "$confirm" != "S" ] && [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
+            echo "Cancelado."
+            platform_info="$plataforma"
+            _mostrar_resumen_init "$rama_default" "" "$platform_info" "$cli_info" "$nombre_repo (cancelado)"
+            return 0
+        fi
+
+        if [ -n "$cli_cmd" ]; then
+            case "$plataforma" in
+                github)
+                    # Asegurar que hay al menos un commit para --push
+                    if ! git log --quiet 2>/dev/null; then
+                        git commit --allow-empty -m "Initial commit" 2>/dev/null
+                    fi
+                    if gh repo create "$nombre_repo" $tipo --source=. --remote=origin --push; then
+                        remote_url=$(git remote get-url origin 2>/dev/null)
+                        echo -e "${GREEN}✅ Repositorio creado y conectado.${NC}"
+                    else
+                        echo -e "${RED}❌ Error al crear el repositorio en GitHub.${NC}"
+                        echo -e "${YELLOW}Instrucciones manuales:${NC}"
+                        echo "  1. Crear repositorio '$nombre_repo' en GitHub (web)"
+                        echo "  2. git remote add origin <url>"
+                        echo "  3. git branch -M $rama_default"
+                        echo "  4. git push -u origin $rama_default"
+                    fi
+                    ;;
+                gitlab)
+                    if glab repo create "$nombre_repo" --remote=origin --push; then
+                        remote_url=$(git remote get-url origin 2>/dev/null)
+                        echo -e "${GREEN}✅ Repositorio creado y conectado.${NC}"
+                    else
+                        echo -e "${RED}❌ Error al crear el repositorio en GitLab.${NC}"
+                        echo "Instrucciones manuales:"
+                        echo "  1. Crear repositorio '$nombre_repo' en GitLab (web)"
+                        echo "  2. git remote add origin <url>"
+                        echo "  3. git branch -M $rama_default"
+                        echo "  4. git push -u origin $rama_default"
+                    fi
+                    ;;
+                *)
+                    echo -e "${YELLOW}⚠️ No hay CLI automática para $plataforma.${NC}"
+                    echo "Instrucciones:"
+                    echo "  1. Crear repositorio '$nombre_repo' en $plataforma (web)"
+                    echo "  2. git remote add origin <url>"
+                    echo "  3. git branch -M $rama_default"
+                    echo "  4. git push -u origin $rama_default"
+                    ;;
+            esac
+        else
+            # No CLI detectada — instrucciones manuales + conexión manual
+            echo -e "${YELLOW}⚠️ No encontré el CLI de $plataforma.${NC}"
+            echo "Para conectar manualmente, ejecutá estos pasos:"
+            echo "  1. Crear repositorio '$nombre_repo' en $plataforma (web)"
+            echo "  2. git remote add origin <url-del-repo>"
+            echo "  3. git branch -M $rama_default"
+            echo "  4. git push -u origin $rama_default"
+            echo ""
+
+            local connectar
+            read -p "¿Ya creaste el repo y querés que conecte el remoto? [Enter=sí]: " connectar
+            if [ -z "$connectar" ] || [ "$connectar" = "s" ] || [ "$connectar" = "S" ] || [ "$connectar" = "y" ] || [ "$connectar" = "Y" ]; then
+                read -p "URL del remote: " remote_url
+                if [ -n "$remote_url" ]; then
+                    git remote add origin "$remote_url"
+                    git branch -M "$rama_default"
+                    # Asegurar que hay al menos un commit para push
+                    if ! git log --quiet 2>/dev/null; then
+                        git commit --allow-empty -m "Initial commit" 2>/dev/null
+                    fi
+                    if git push -u origin "$rama_default"; then
+                        echo -e "${GREEN}✅ Repositorio conectado a $remote_url${NC}"
+                    else
+                        echo -e "${RED}❌ Error al pushear.${NC}"
+                    fi
+                fi
+            else
+                echo "Podés conectarlo manualmente más tarde."
+            fi
+        fi
+    elif [ "$opcion" = "usar" ]; then
+        read -p "URL del remoto: " remote_url
+        if [ -z "$remote_url" ]; then
+            echo -e "${RED}❌ Debés especificar una URL.${NC}"
+            platform_info="usar existente"
+            _mostrar_resumen_init "$rama_default" "" "$platform_info" "" "Sin URL"
+            return 0
+        fi
+        git remote add origin "$remote_url"
+        git branch -M "$rama_default"
+        # Asegurar que hay al menos un commit para push
+        if ! git log --quiet 2>/dev/null; then
+            git commit --allow-empty -m "Initial commit" 2>/dev/null
+        fi
+        if git push -u origin "$rama_default"; then
+            echo -e "${GREEN}✅ Repositorio conectado a $remote_url${NC}"
+        else
+            echo -e "${RED}❌ Error al pushear.${NC}"
+        fi
+    fi
+
+    # Mostrar resumen final
+    platform_info="${platform_info:-$plataforma}"
+    _mostrar_resumen_init "$rama_default" "$remote_url" "$platform_info" "$cli_info" "$extra"
+    return 0
+}
+
+# --- Función helper: resumen de inicialización ---
+_mostrar_resumen_init() {
+    local rama="$1"
+    local remote_url="$2"
+    local platform_info="$3"
+    local cli_info="$4"
+    local extra="$5"
+
+    echo ""
+    echo -e "${CYAN}📋 Resumen de inicialización${NC}"
+    echo "   📁 Repo local:      $(pwd)"
+    echo "   🌿 Rama por defecto: $rama"
+    if [ -n "$remote_url" ]; then
+        echo "   🔗 Remoto:        $remote_url"
+    else
+        echo "   🔗 Remoto:        Sin remoto"
+    fi
+    if [ -n "$cli_info" ]; then
+        echo "   🛠 CLI:           $cli_info"
+    else
+        echo "   🛠 CLI:           —"
+    fi
+    if [ -n "$platform_info" ]; then
+        echo "   🌐 Plataforma:    $platform_info"
+    fi
+    if [ -n "$extra" ]; then
+        echo "   ℹ️ $extra"
+    fi
+    echo -e "${GREEN}✅ Listo para trabajar.${NC}"
 }
 
 tiene_cambios() {
@@ -528,6 +777,7 @@ mostrar_ayuda() {
     echo "    uso:    merge <origen> <destino> <1|2>"
     echo "  --install-alias - Instala el alias 'gk' en ~/.bash_aliases"
     echo "  help     - Esta ayuda"
+    echo "  info     - Inicializa repo + conexión remota si no existe"
     echo ""
     echo "Atajes: s=start, c=close, q=salir (modo interactivo)"
     echo "Sin argumentos: modo interactivo"
@@ -539,7 +789,7 @@ mostrar_menu() {
     local _rama_actual
     _rama_actual=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
     echo "------------------------------------------------"
-    echo -e "${BLUE}🎮 git-sidekick v0.1.0${NC}"
+    echo -e "${BLUE}🎮 git-sidekick v0.2.0${NC}"
     if [ -n "$_rama_actual" ]; then
         echo -e "${YELLOW}📍 Rama actual: → $_rama_actual${NC}"
     fi
@@ -664,11 +914,15 @@ main() {
             snapshot) crear_snapshot ;;
             clean) limpiar_snapshots ;;
             merge) shift; merge_protegido "$@" ;;
+            info) check_git && echo "📁 Repositorio: $(pwd)" && echo "🌿 Rama: $(git rev-parse --abbrev-ref HEAD)" ;;
             --install-alias) install_alias ;;
             help|--help|-h) mostrar_ayuda ;;
             *) echo -e "${RED}❌ Comando desconocido: $1${NC}"; mostrar_ayuda ;;
         esac
     else
+        if ! check_git; then
+            return 1
+        fi
         mostrar_menu
     fi
 }
