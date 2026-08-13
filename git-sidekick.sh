@@ -69,28 +69,60 @@ inicializar_repo() {
     fi
     echo -e "${GREEN}✅ Repositorio Git inicializado.${NC}"
 
-    # Preguntar local o remoto
-    read -p "¿Querés trabajar solo en local o conectarlo a un remoto? (local/remoto) [local]: " modo
-    if [ -z "$modo" ]; then
-        modo="local"
+    # Preguntar local o remoto (lista numerada)
+    echo ""
+    echo -e "${CYAN}📋 Opciones de conexión:${NC}"
+    echo "  1) Trabajar en local (sin remoto)"
+    echo "  2) Conectar a un remoto (GitHub/GitLab/etc.)"
+    local sel_modo
+    read -p "Seleccioná una opción (1-2) [1]: " sel_modo
+    if [ -z "$sel_modo" ]; then
+        sel_modo=1
     fi
 
-    if [ "$modo" = "local" ]; then
+    if [ "$sel_modo" = "1" ]; then
+        _mostrar_resumen_init "$rama_default" "" "" "" ""
+        return 0
+    elif [ "$sel_modo" != "2" ]; then
+        echo -e "${RED}❌ Opción inválida.${NC}"
         _mostrar_resumen_init "$rama_default" "" "" "" ""
         return 0
     fi
 
-    # Modo remoto: crear nuevo o usar existente
-    read -p "¿Querés crear un repositorio nuevo o usar uno existente? (crear/usar) [crear]: " opcion
-    if [ -z "$opcion" ]; then
-        opcion="crear"
+    # Modo remoto: crear nuevo o usar existente (lista numerada)
+    echo ""
+    echo -e "${CYAN}📋 Tipo de remoto:${NC}"
+    echo "  1) Crear repositorio nuevo"
+    echo "  2) Usar repositorio existente"
+    local sel_opcion
+    read -p "Seleccioná una opción (1-2) [1]: " sel_opcion
+    if [ -z "$sel_opcion" ]; then
+        sel_opcion=1
     fi
 
-    if [ "$opcion" = "crear" ]; then
-        read -p "Plataforma (github/gitlab/bitbucket/otro) [github]: " plataforma
-        if [ -z "$plataforma" ]; then
-            plataforma="github"
+    if [ "$sel_opcion" = "1" ]; then
+        echo ""
+        echo -e "${CYAN}📋 Plataformas disponibles:${NC}"
+        echo "  1) GitHub (gh)"
+        echo "  2) GitLab (glab)"
+        echo "  3) Bitbucket"
+        echo "  4) Otra"
+        local sel_plataforma
+        read -p "Seleccioná una plataforma (1-4) [1]: " sel_plataforma
+        if [ -z "$sel_plataforma" ]; then
+            sel_plataforma=1
         fi
+        case "$sel_plataforma" in
+            1) plataforma="github" ;;
+            2) plataforma="gitlab" ;;
+            3) plataforma="bitbucket" ;;
+            4) read -p "Nombre de la plataforma: " plataforma
+               if [ -z "$plataforma" ]; then
+                   plataforma="otra"
+               fi
+               ;;
+            *) echo -e "${RED}❌ Opción inválida.${NC}"; plataforma="github" ;;
+        esac
 
         read -p "Nombre del repositorio: " nombre_repo
         if [ -z "$nombre_repo" ]; then
@@ -100,9 +132,16 @@ inicializar_repo() {
             return 0
         fi
 
-        read -p "¿Público o privado? (public/private) [public]: " visibilidad
-        if [ -z "$visibilidad" ]; then
+        echo ""
+        echo -e "${CYAN}📋 Visibilidad:${NC}"
+        echo "  1) Público"
+        echo "  2) Privado"
+        local sel_vis
+        read -p "Seleccioná una opción (1-2) [1]: " sel_vis
+        if [ -z "$sel_vis" ] || [ "$sel_vis" = "1" ]; then
             visibilidad="public"
+        else
+            visibilidad="private"
         fi
         tipo="--public"
         if [ "$visibilidad" = "private" ]; then
@@ -224,7 +263,7 @@ inicializar_repo() {
                 echo "Podés conectarlo manualmente más tarde."
             fi
         fi
-    elif [ "$opcion" = "usar" ]; then
+    elif [ "$sel_opcion" = "2" ]; then
         read -p "URL del remoto: " remote_url
         if [ -z "$remote_url" ]; then
             echo -e "${RED}❌ Debés especificar una URL.${NC}"
@@ -449,13 +488,35 @@ listar_snapshots() {
     done <<< "$tags"
 }
 restaurar_snapshot() {
-    listar_snapshots
-    local tag
-    read -p "Ingrese el tag a restaurar (Enter para cancelar): " tag
-    if [ -z "$tag" ]; then
+    local tags=() tag _i _fecha_tag
+    _i=1
+    echo -e "${CYAN}📋 Snapshots disponibles:${NC}"
+    while IFS= read -r tag; do
+        [ -z "$tag" ] && continue
+        _fecha_tag=$(git log -1 --format=%ai "$tag" 2>/dev/null | cut -d' ' -f1)
+        echo "  $_i) $tag  ($_fecha_tag)"
+        tags+=("$tag")
+        _i=$((_i+1))
+    done < <(git tag --list 'work/*' --sort=-creatordate)
+
+    if [ "${#tags[@]}" -eq 0 ]; then
+        echo "No hay snapshots"
+        return 0
+    fi
+
+    local seleccion
+    read -p "Seleccioná un snapshot (1-${#tags[@]}) [Enter=Cancelar]: " seleccion
+    if [ -z "$seleccion" ]; then
         echo "Operación cancelada."
         return 1
     fi
+
+    if ! [[ "$seleccion" =~ ^[0-9]+$ ]] || [ "$seleccion" -lt 1 ] || [ "$seleccion" -gt "${#tags[@]}" ]; then
+        echo -e "${RED}❌ Selección inválida.${NC}"
+        return 1
+    fi
+
+    tag="${tags[$((seleccion-1))]}"
     local confirm
     read -p "¿Confirmar restauración a ${tag}? [Enter=sí]: " confirm
     if [ -n "$confirm" ] && [ "$confirm" != "s" ] && [ "$confirm" != "S" ] && [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
@@ -796,7 +857,7 @@ mostrar_ayuda() {
     echo -e "${CYAN}📘 git-sidekick - Asistente de Git${NC}"
     echo "========================================="
     echo "Comandos disponibles:"
-    echo "  start    - Iniciar sesión"
+    echo "  start    - Iniciar sesión (lista ramas numeradas)"
     echo "  close    - Cerrar sesión"
     echo "  status   - Ver estado"
     echo "  restore  - Restaurar punto"
