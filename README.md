@@ -14,6 +14,7 @@
 - [Características](#características)
 - [Requisitos](#requisitos)
 - [Instalación](#instalación)
+- [Inicialización automática de repositorios](#inicialización-automática-de-repositorios)
 - [Alias para uso rápido](#alias-para-uso-rápido)
 - [Uso básico](#uso-básico)
   - [Modo interactivo](#modo-interactivo)
@@ -37,6 +38,7 @@
 - 🧹 **Limpieza inteligente** de snapshots antiguos (mantiene los recientes y un por semana).
 - 💡 **Sugerencia de mensajes de commit** para sesiones de cierre.
 - 🤖 **Listo para asistentes de IA**: usá lenguaje natural y delegá las tareas a Pi, OpenCode o DeepSeek.
+- 🚀 **Inicialización automática de repositorios** (local/remoto, con GitHub, agnóstico de nube).
 
 ---
 
@@ -177,7 +179,7 @@ Ejecutalo sin argumentos y navegá el menú con números:
 
 ```
 ------------------------------------------------
-🎮 git-sidekick v0.1.0
+🎮 git-sidekick v0.2.0
 📍 Rama actual: → main
 ------------------------------------------------
 1) INICIAR sesión        (atajo: s)
@@ -206,6 +208,8 @@ Opción (1-11) [s/c/q]:
 ./git-sidekick.sh clean      # Limpiar snapshots viejos
 ./git-sidekick.sh merge <origen> <destino> <nivel>  # Merge protegido (1=simple, 2=estricto)
 ./git-sidekick.sh help       # Mostrar ayuda
+./git-sidekick.sh info      # Ver estado o inicializar repo
+./git-sidekick.sh --install-alias     # Instalar alias gk
 ```
 
 ---
@@ -251,8 +255,9 @@ Trabajás con una **sesión**: cada vez que empezás una tarea, iniciás; cuando
 | `restore`| Lista snapshots y restaura eligiendo uno con `git reset --hard`.      |
 | `snapshot`| Crea un snapshot rápido sin abrir sesión (punto de rescate).          |
 | `clean`  | Borra snapshots antiguos con confirmación previa.                     |
-| `merge`  | Mergea origen → destino con protección (nivel 1 o 2). |
+| `merge <origen> <destino> <nivel>` | Fusiona ramas con protección (1=simple, 2=estricto).                |
 | `help`   | Muestra la ayuda del script.                                            |
+| `--install-alias` | Instala el alias `gk` en ~/.bash_aliases.                      |
 | `info`   | Inicializa repo + conexión remota si no existe, o muestra estado.     |
 | (nada)   | Abre el menú interactivo.                                              |
 
