@@ -186,3 +186,25 @@ teardown() {
   echo "$output" | grep -q "SIMULACIÓN"
   ! grep -q "Snapshot creado: work" <<< "$output"
 }
+
+# ── UX-3: MENU STATE + MICRO-HINTS ─────────────────────────
+
+@test "menu muestra 'Sesión: inactiva' cuando no hay contexto" {
+  output=$(printf "8\n" | "$GKS" 2>&1 || true)
+  echo "$output" | grep -q "Sesión: inactiva"
+  echo "$output" | grep -q "usá 's'"
+}
+
+@test "menu muestra 'Sesión: activa' cuando hay contexto guardado" {
+  printf "rama=main\nfecha_inicio=2026-01-01_00-00\naccion=inicio\ntag_inicio=work/test\n" > .git-sidekick-context
+  output=$(printf "8\n" | "$GKS" 2>&1 || true)
+  echo "$output" | grep -q "Sesión: activa"
+  echo "$output" | grep -q "en \[main\]"
+}
+
+@test "start_session incluye micro-hint de guidance" {
+  output=$(printf '1\n1\ntest\ntest\nt8\n' | "$GKS" 2>&1 || true)
+  echo "$output" | grep -q "SESIÓN INICIADA"
+  echo "$output" | grep -q "💡"
+  echo "$output" | grep -q "opción 3"
+}

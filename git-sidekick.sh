@@ -609,6 +609,7 @@ mostrar_estado() {
 
     echo ""
     git status --short
+    say_tip "Iniciá sesión con 's' (opción 1) o creá un snapshot de rescate con '5'."
 }
 
 # --- Funciones de bitácora ---
@@ -676,6 +677,7 @@ crear_snapshot() {
     fi
     if git tag "$nombre" -m "Snapshot: ${etiqueta:-sin-etiqueta}"; then
         say_success "Snapshot creado: $nombre ✓"
+        say_tip "Restaurá con 'gk restore' (opción 4) si lo necesitás."
         return 0
     else
         say_error "No pude crear el tag '$nombre'."
@@ -735,7 +737,8 @@ restaurar_snapshot() {
     fi
     echo -e "${YELLOW}⚠️ Se perderán todos los cambios no guardados.${NC}"
     if git reset --hard "$tag"; then
-        echo -e "${GREEN}✅ Restaurado a $tag${NC}"
+        say_success "Restaurado a $tag ✓"
+        say_tip "Volvé a iniciar sesión con 's' (opción 1), o revisá con 'gk info'."
         return 0
     else
         echo -e "${RED}❌ Error al restaurar el snapshot.${NC}"
@@ -802,7 +805,7 @@ limpiar_snapshots() {
         git tag -d "$i"
         echo "Eliminado: $i"
     done
-    echo -e "${GREEN}✅ Limpieza completada.${NC}"
+    say_success "Limpieza completada ✓"
     return 0
 }
 
@@ -886,8 +889,9 @@ start_session() {
 
     if [ -n "$snapshot_tag" ]; then
         guardar_contexto "$rama" "inicio" "$snapshot_tag"
-        echo -e "${GREEN}✅ SESIÓN INICIADA en [${rama}]${NC}"
-        echo -e "${GREEN}   Tag creado: ${snapshot_tag}${NC}"
+        say_success "SESIÓN INICIADA en [${rama}] ✓"
+        say_info "Tag de inicio: ${snapshot_tag}"
+        say_tip "Editá, agregá y commiteá. Cerrás con 'c' (opción 3)."
     else
         echo -e "${RED}❌ Error al crear el snapshot de inicio.${NC}"
         return 1
@@ -958,7 +962,8 @@ close_session() {
     fi
 
     limpiar_contexto
-    echo -e "${GREEN}✅ SESIÓN CERRADA. Todo guardado.${NC}"
+    say_success "SESIÓN CERRADA. Todo guardado ✓"
+    say_tip "Iniciá otra con 's' (opción 1), o restaurá un point con '4'."
 }
 cambiar_rama() {
     local target_branch="$1"
@@ -985,6 +990,7 @@ cambiar_rama() {
     local err_out
     if err_out=$(git checkout "$target_branch" 2>&1); then
         say_success "Cambiado a rama '$target_branch' ✓"
+        say_tip "Iniciá sesión con 's' (opción 1) o creá un snapshot con '5'."
         return 0
     else
         say_git_error "$err_out"
@@ -1083,7 +1089,8 @@ merge_protegido() {
         cambiar_rama "$rama_original" 2>/dev/null
     fi
 
-    echo -e "${GREEN}✅ Merge $origen → $destino completado.${NC}"
+    say_success "Merge $origen → $destino completado ✓"
+    say_tip "Verificá con 'gk info', o seguí trabajando / cerrá con 'c' (opción 3)."
     return 0
 }
 
@@ -1120,6 +1127,13 @@ mostrar_menu() {
     echo -e "${BLUE}🎮 git-sidekick v0.3.0${NC}"
     if [ -n "$_rama_actual" ]; then
         echo -e "${YELLOW}📍 Rama actual: → $_rama_actual${NC}"
+    fi
+    if [ -f "$CONTEXT_FILE" ]; then
+        local _ctx_rama
+        _ctx_rama=$(grep '^rama=' "$CONTEXT_FILE" 2>/dev/null | cut -d= -f2-)
+        say_success "Sesión: activa en [${_ctx_rama}]"
+    else
+        say_warn "Sesión: inactiva — usá 's' (opción 1) para INICIAR"
     fi
     echo "------------------------------------------------"
     echo "1) INICIAR sesión        (atajo: s)"
