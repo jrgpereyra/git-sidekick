@@ -208,3 +208,16 @@ teardown() {
   echo "$output" | grep -q "💡"
   echo "$output" | grep -q "opción 3"
 }
+
+@test "start_session: Enter defaultea a dev (marca reco" {
+  git branch dev
+  output=$(printf '1\n\n\n8\n' | "$GKS" 2>&1 || true)
+  echo "$output" | grep -q "🔹"
+  echo "$output" | grep -q "SESIÓN INICIADA en \[dev\]"
+}
+
+@test "start_session: sin dev, Enter defaultea al primer branch" {
+  output=$(printf '1\n\n\n8\n' | "$GKS" 2>&1 || true)
+  ! echo "$output" | grep -q "🔹"
+  echo "$output" | grep -q "SESIÓN INICIADA en \[main\]"
+}

@@ -827,23 +827,28 @@ start_session() {
 
     # Listar ramas disponibles numeradas
     echo -e "${CYAN}📋 Ramas disponibles:${NC}"
-    local ramas=() _i=1 _r
+    local ramas=() _i=1 _r _dev_idx=""
     while IFS= read -r _r; do
         [ -z "$_r" ] && continue
+        local _marker=""
         if [ "$_r" = "$rama_actual" ]; then
-            echo "  $_i) $_r *"
-        else
-            echo "  $_i) $_r"
+            _marker=" *"
         fi
+        if [ "$_r" = "$DEV_BRANCH" ]; then
+            _dev_idx=$_i
+            [ -z "$_marker" ] && _marker=" 🔹 (recomendado)"
+        fi
+        echo "  $_i) $_r$_marker"
         ramas+=("$_r")
         _i=$((_i+1))
     done < <(git branch --format='%(refname:short)')
     echo "  0) Crear nueva rama..."
 
+    local _default=${_dev_idx:-1}
     local seleccion
-    read -p "Seleccioná una rama (0-${#ramas[@]}) [1]: " seleccion
+    read -p "Seleccioná una rama (0-${#ramas[@]}) [$_default]: " seleccion
     if [ -z "$seleccion" ]; then
-        seleccion=1
+        seleccion=$_default
     fi
 
     local rama
