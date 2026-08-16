@@ -84,10 +84,10 @@ La configuración es estática dentro del script (prefijos de tags, nombres de r
   - Especificar nombre del archivo de bitácora.
 
 ### Tareas concretas
-- [ ] Parser de `.git-sidekickrc` (formato `key=value`, con comentarios).
-- [ ] Variables de configuración con valores por defecto.
-- [ ] Cargar config al inicio del script (antes de cualquier acción).
-- [ ] Archivo `.git-sidekickrc.example` como plantilla.
+- [x] Parser de `.git-sidekickrc` (formato `key=value`, con comentarios).
+- [x] Variables de configuración con valores por defecto.
+- [x] Cargar config al inicio del script (antes de cualquier acción).
+- [x] Archivo `.git-sidekickrc.example` como plantilla.
 
 ### Prioridad
 ⭐⭐⭐ (Alta — base para toda la personalización)
@@ -108,6 +108,7 @@ La configuración es estática dentro del script (prefijos de tags, nombres de r
 ### 4.3 Modo `--dry-run`
 - **Problema:** No hay forma de previsualizar lo que hará `start`, `close` o `merge` sin ejecutar.
 - **Solución:** Bandera `--dry-run` que muestre los comandos que se ejecutarían sin aplicar cambios.
+- **Estado:** ✅ Implementado en v0.3.0 (`start`, `close`, `snapshot`, `merge`, `stash`).
 
 ### 4.4 Mensajes de error más claros
 - **Problema:** Algunos errores son crípticos (ej. `"Error al crear la rama"`).

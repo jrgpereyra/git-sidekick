@@ -2,7 +2,7 @@
 
 # =============================================================================
 # git-sidekick.sh - Asistente universal de Git para novatos
-# Versión: 0.2.0
+# Versión: 0.3.0
 # Licencia: MIT
 # =============================================================================
 
@@ -994,7 +994,7 @@ mostrar_menu() {
     local _rama_actual
     _rama_actual=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
     echo "------------------------------------------------"
-    echo -e "${BLUE}🎮 git-sidekick v0.2.0${NC}"
+    echo -e "${BLUE}🎮 git-sidekick v0.3.0${NC}"
     if [ -n "$_rama_actual" ]; then
         echo -e "${YELLOW}📍 Rama actual: → $_rama_actual${NC}"
     fi

@@ -1,7 +1,7 @@
 # git-sidekick
 
 ![License](https://img.shields.io/badge/License-MIT-blue.svg)
-![Version](https://img.shields.io/badge/version-0.2.0-orange.svg)
+![Version](https://img.shields.io/badge/version-0.3.0-orange.svg)
 ![Hecho con](https://img.shields.io/badge/hecho%20con-Bash-4979e0.svg)
 
 > **Asistente universal de Git para novatos.**  
@@ -127,9 +127,9 @@ Nombre del repositorio: mi-nuevo-proyecto
 ✅ Listo para trabajar.
 ```
 
-### Comando `info`
+### Comando `info` **(v0.3.0)**
 
-Para forzar la inicialización o ver el estado del repo en cualquier momento:
+Muestra un **resumen completo** del estado del repositorio: rama actual, remote, commits ahead/behind, último snapshot, estado de sesión y la bitácora:
 
 ```bash
 ./git-sidekick.sh info
@@ -155,7 +155,7 @@ Ejemplos de uso:
 
 ```bash
 gk start                  # iniciar sesión
-gk info                   # ver estado o inicializar repo
+gk info                   # mostrar información del repositorio
 gk close                  # cerrar sesión
 gk status                 # ver estado de la rama
 gk merge feat main 1      # merge protegido nivel 1
@@ -163,6 +163,61 @@ gk help                   # esta ayuda
 ```
 
 > El alias apunta a la ruta absoluta del script en el momento de la instalación; si el script lo movés o renombrás, volvé a correr `--install-alias` para actualizarlo.
+
+## Configuración por proyecto (`.git-sidekickrc`)
+
+> **Nuevo en v0.3.0**
+
+Personalizá el comportamiento de git-sidekick **por proyecto** creando un archivo `.git-sidekickrc` en la raíz del repo. Usa formato `key=value`:
+
+```bash
+# .git-sidekickrc
+# Copiá .git-sidekickrc.example y ajustá según tu proyecto
+
+default_branch=main          # rama principal (main / master)
+dev_branch=dev               # rama de desarrollo
+snapshot_prefix=work         # prefijo para tags de snapshot
+auto_stash=true              # ¿stash automático al cambiar de rama?
+auto_push=false              # ¿subir a la nube al cerrar? (false = seguro)
+confirm_destructive=true     # ¿confirmación doble antes de reset --hard?
+```
+
+### Opciones disponibles
+
+| Opción | Default | Descripción |
+|--------|---------|-------------|
+| `default_branch` | `main` | Nombre de la rama principal. |
+| `dev_branch` | `dev` | Nombre de la rama de desarrollo. |
+| `auto_stash` | `true` | Stash automático al cambiar de rama. |
+| `auto_push` | `false` | Push a la nube al cerrar sesión. |
+| `confirm_destructive` | `true` | Confirmación doble antes de `reset --hard`. |
+| `snapshot_prefix` | `work` | Prefijo para los tags de snapshot. |
+| `worklog_file` | `.git-worklog.md` | Nombre del archivo de bitácora. |
+
+> 💡 `.git-sidekickrc` está en el `.gitignore` por defecto. Si querés versionarlo para compartir con tu equipo, ejecutá `git add -f .git-sidekickrc`.
+
+## Simulación con `--dry-run`
+
+> **Nuevo en v0.3.0**
+
+El flag **`--dry-run`** te permite ver **qué haría** el script **sin ejecutar nada**. Ideal para novatos que quieren entender antes de aplicar:
+
+```bash
+gk start --dry-run          # Muestra el plan: stash, checkpoint, snapshot
+gk close --dry-run          # Muestra: commit, snapshot, push
+gk merge a b 1 --dry-run    # Muestra: commits a fusionar + confirmación
+gk restore tag --dry-run    # Muestra: qué snapshot se restauraría
+```
+
+Ejemplo de salida:
+```
+$ gk start --dry-run
+🔍 [SIMULACIÓN] Activado: los comandos se muestran pero no se ejecutan.
+   💡 Sacá --dry-run para ejecutar de verdad.
+🔍 [SIMULACIÓN] Iniciar sesión: stash + checkpoint + snapshot
+   └─ No se crea el snapshot, no se hace stash.
+   └─ Usá 'gk start' sin --dry-run para ejecutar.
+```
 
 ## Uso básico
 
@@ -179,7 +234,7 @@ Ejecutalo sin argumentos y navegá el menú con números:
 
 ```
 ------------------------------------------------
-🎮 git-sidekick v0.2.0
+🎮 git-sidekick v0.3.0
 📍 Rama actual: → main
 ------------------------------------------------
 1) INICIAR sesión        (atajo: s)
@@ -208,7 +263,7 @@ Opción (1-11) [s/c/q]:
 ./git-sidekick.sh clean      # Limpiar snapshots viejos
 ./git-sidekick.sh merge <origen> <destino> <nivel>  # Merge protegido (1=simple, 2=estricto)
 ./git-sidekick.sh help       # Mostrar ayuda
-./git-sidekick.sh info      # Ver estado o inicializar repo
+./git-sidekick.sh info      # Mostrar información detallada del repositorio
 ./git-sidekick.sh --install-alias     # Instalar alias gk
 ```
 
@@ -262,7 +317,8 @@ Trabajás con una **sesión**: cada vez que empezás una tarea, iniciás; cuando
 | `merge <origen> <destino> <nivel>` | Fusiona ramas con protección (1=simple, 2=estricto).                |
 | `help`   | Muestra la ayuda del script.                                            |
 | `--install-alias` | Instala el alias `gk` en ~/.bash_aliases.                      |
-| `info`   | Inicializa repo + conexión remota si no existe, o muestra estado.     |
+| `info`   | Muestra rama, remote, ahead/behind, último snapshot y bitácora.       |
+| `--dry-run` | Flag: simula cualquier comando sin ejecutarlo (preview seguro).  |
 | (nada)   | Abre el menú interactivo.                                              |
 
 ---

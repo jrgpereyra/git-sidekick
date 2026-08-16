@@ -1,0 +1,18 @@
+# .git-sidekickrc.example
+# Copiá este archivo como .git-sidekickrc y ajustá según tu proyecto.
+# El script lo carga automáticamente si existe en la raíz del repo.
+
+# --- Ramas ---
+default_branch=main          # rama principal (main / master)
+dev_branch=dev               # rama de desarrollo
+
+# --- Prefijos ---
+snapshot_prefix=work         # prefijo para tags de snapshot (work/2026-...)
+
+# --- Archivos ---
+worklog_file=.git-worklog.md  # nombre del archivo de bitácora
+
+# --- Comportamiento ---
+auto_stash=true              # ¿stash automático al cambiar de rama?
+auto_push=false              # ¿subir a la nube al cerrar sesión? (false = seguro)
+confirm_destructive=true     # ¿confirmación doble antes de reset --hard?
