@@ -152,6 +152,7 @@ La configuración es estática dentro del script (prefijos de tags, nombres de r
 | **F3** | Análisis de diff + mensajes en español + bitácora narrativa | 3 días |
 | **F4** | Soporte DDEV/Drupal (snapshot BD, drush cex) | 3 días |
 | **F5** | Tests (`bats-core`), integración y release v2.0.0 | 2 días |
+| **F6** | ✅ Tests `bats-core` (13 tests pasando) | 1 día |
 
 **Total estimado:** ~12 días hábiles
 
