@@ -148,7 +148,7 @@ La configuración es estática dentro del script (prefijos de tags, nombres de r
 | Fase | Contenido | Est. |
 |------|-----------|------|
 | **F1** | `.git-sidekickrc` + parser + ejemplos | 2 días |
-| **F2** | ✅ Numeración + errores claros (v0.2.0); falta autocompletado + `--dry-run` | 2 días |
+| **F2** | ✅ Numeración + errores claros (v0.2.0); ✅ `--dry-run` (v0.3.0); falta autocompletado | 2 días |
 | **F3** | Análisis de diff + mensajes en español + bitácora narrativa | 3 días |
 | **F4** | Soporte DDEV/Drupal (snapshot BD, drush cex) | 3 días |
 | **F5** | Tests (`bats-core`), integración y release v2.0.0 | 2 días |
@@ -183,3 +183,48 @@ Al final de la v2, el usuario podrá:
 - Se mantiene compatibilidad con versiones anteriores (config por defecto idéntica).
 - El modo interactivo sigue siendo la interfaz principal; los comandos directos siguen funcionando igual.
 - Las mejoras de usabilidad (F2) son independientes y pueden entregarse antes de F3/F4.
+
+---
+
+## 🚀 v0.3.0 — Core estable + UX para novatos (COMPLETADO)
+
+> **Implementado en v0.3.0**
+
+- **`--dry-run`**: flag universal que simula cualquier comando (`start`, `close`, `snapshot`, `merge`, `stash`) sin ejecutar nada. Ideal para novatos que quieren entender antes de aplicar.
+- **`.git-sidekickrc`**: configuración declarativa por proyecto (`default_branch`, `dev_branch`, `auto_push`, `auto_stash`, `confirm_destructive`, `snapshot_prefix`, `worklog_file`).
+- **`info` mejorado**: resumen completo (rama, remote, ahead/behind, tags, bitácora, tips).
+- **Tono amigable**: emojis consistentes + microcopy que explica "qué" y "por qué".
+- **Defaults seguros**: `auto_push=false` por defecto (no sube sin confirmación).
+
+### Preparación para Astro (próxima iteración)
+
+Aunque el plugin de Astro aún no existe, se puede preparar el proyecto manualmente:
+
+```bash
+# .git-sidekickrc (en tu proyecto Astro)
+default_branch=main
+dev_branch=main
+auto_push=true
+
+# Hooks manuales (hasta tener plugin):
+npx astro check && npm run build   # antes de commitear
+gnpm install                       # después de merge
+```
+
+**Plugin futuro (`plugins/astro.sh`):**
+- `plugin_detect()`: `astro.config.mjs` o `astro` en `package.json`
+- `plugin_setup()`: instalar Node si falta
+- `plugin_pre_commit()`: `npx astro check` + `npm run build`
+- `plugin_post_merge()`: `npm install`
+
+### Core checklist
+
+| Tarea | Estado |
+|---|---|
+| `--dry-run` en todos los comandos | ✅ |
+| `.git-sidekickrc` parser + load_config | ✅ |
+| `info` command detallado | ✅ |
+| Tono amigable en messages | ✅ |
+| **Tests con `bats-core`** | ⏳ Pendiente |
+| **Plugin Astro** | ⏳ Pendiente (proyecto Astro definido) |
+| **Plugin Drupal/DDEV** | ⏳ Postergado (referencia: `id10-control-simple.sh`) |
