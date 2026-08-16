@@ -1,5 +1,6 @@
 # Archivos de contexto
 .git-sidekick-context
+.git-sidekickrc        # Configuración por proyecto ( opcional, versionable con git add -f )
 # Archivos de bitácora (opcional, si querés versionarlos)
 .git-worklog.md
 # Directorios de respaldo (si los hay)

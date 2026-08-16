@@ -19,6 +19,32 @@ WORKLOG_FILE=".git-worklog.md"
 CONTEXT_FILE=".git-sidekick-context"
 SNAPSHOT_PREFIX="work"
 
+# --- Configuración extensible por proyecto (.git-sidekickrc) ---
+# Podés crear .git-sidekickrc en la raíz del repo para personalizar.
+DEFAULT_BRANCH="main"      # rama principal
+DEV_BRANCH="dev"           # rama de desarrollo
+AUTO_STASH=true           # stash automático?
+AUTO_PUSH=false            # push automático? (false = seguro)
+CONFIRM_DESTRUCTIVE=true   # confirmación doble en reset --hard
+
+load_config() {
+    local rc_file=".git-sidekickrc"
+    if [ -f "$rc_file" ]; then
+        echo -e "${CYAN}⚙️  Cargo config: ${rc_file}${NC}"
+        source "$rc_file" 2>/dev/null
+    fi
+}
+load_config
+
+DRY_RUN=false
+simulate() {
+    if [ "$DRY_RUN" = "true" ]; then
+        echo -e "${BLUE}🔍 [SIMULACIÓN] $*${NC}"
+        return 0
+    fi
+    return 1
+}
+
 # --- Funciones auxiliares (vacías) ---
 check_git() {
     if git rev-parse --git-dir > /dev/null 2>&1; then
@@ -332,6 +358,9 @@ tiene_cambios() {
     fi
 }
 stash_auto() {
+    if simulate "Hacer stash de cambios no commiteados (git stash)"; then
+        return 0
+    fi
     if ! tiene_cambios; then
         echo -e "${YELLOW}ℹ️ No hay cambios para stash.${NC}"
         return 0
@@ -378,6 +407,71 @@ ultimo_tag() {
         echo "$tag"
     fi
 }
+# --- Función de info detallado ---
+mostrar_info() {
+    if ! check_git; then
+        return 1
+    fi
+
+    echo -e "${BLUE}📋 Información del repositorio${NC}"
+    echo "   📁 Proyecto:   $(pwd)"
+    echo "   🌿 Rama:      $(git rev-parse --abbrev-ref HEAD)"
+
+    local remote_url
+    remote_url=$(git remote get-url origin 2>/dev/null)
+    if [ -n "$remote_url" ]; then
+        echo "   🔗 Remote:     $remote_url"
+    else
+        echo "   🔗 Remote:     Sin conectar"
+    fi
+
+    local rama
+    rama=$(git rev-parse --abbrev-ref HEAD)
+    if git rev-parse "${rama}@{upstream}" >/dev/null 2>&1; then
+        local behind ahead
+        behind=$(git rev-list --count HEAD.."${rama}@{upstream}" 2>/dev/null)
+        ahead=$(git rev-list --count "${rama}@{upstream}"..HEAD 2>/dev/null)
+        echo "   📤 Ahead:      ${ahead} commit(s) locales sin subir"
+        echo "   📥 Behind:     ${behind} commit(s) remotos para descargar (git pull)"
+    else
+        echo "   📤 Ahead:      Sin seguimiento remoto"
+        echo "   📥 Behind:     Sin seguimiento remoto"
+    fi
+
+    local ult_tag
+    ult_tag=$(ultimo_tag)
+    echo "   📸 Último tag:  ${ult_tag}"
+
+    if [ -f "$CONTEXT_FILE" ]; then
+        echo "   📌 Sesión:     Activa (hay contexto guardado)"
+    else
+        echo "   📌 Sesión:     Inactiva"
+    fi
+
+    if [ -f "$WORKLOG_FILE" ]; then
+        local lineas
+        lineas=$(grep -c '^## ' "$WORKLOG_FILE" 2>/dev/null || echo 0)
+        echo "   📝 Bitácora:    ${lineas} sesion(es) registradas"
+    fi
+
+    echo ""
+    git status --short 2>/dev/null | head -15
+    local total_archivos
+    total_archivos=$(git status --short 2>/dev/null | wc -l)
+    if [ "$total_archivos" -gt 15 ]; then
+        echo "... y $((total_archivos - 15)) archivo(s) más"
+    fi
+
+    echo ""
+    echo -e "${CYAN}💡 Tips:${NC}"
+    echo "   • 'gk start'  → Iniciar una sesión de trabajo"
+    echo "   • 'gk close'  → Commitear + snapshot de cierre"
+    echo "   • 'gk status' → Ver estado rápido"
+    if [ "$DRY_RUN" = "true" ]; then
+        echo -e "${YELLOW}   ⚠️ Recordá: estás en modo SIMULACIÓN.${NC}"
+    fi
+}
+
 mostrar_estado() {
     git fetch --all --prune > /dev/null 2>&1
 
@@ -464,6 +558,10 @@ crear_snapshot() {
         nombre="${prefijo}/${fecha}-${etiqueta_limpia}"
     else
         nombre="${prefijo}/${fecha}"
+    fi
+    if simulate "Crear snapshot (git tag $nombre)"; then
+        echo -e "${BLUE}   └─ Tag que crearía: ${nombre}${NC}"
+        return 0
     fi
     if git tag "$nombre" -m "Snapshot: ${etiqueta:-sin-etiqueta}"; then
         echo -e "${GREEN}✅ Snapshot creado: $nombre${NC}"
@@ -598,6 +696,11 @@ limpiar_snapshots() {
 
 # --- Funciones de flujo principal ---
 start_session() {
+    if simulate "Iniciar sesión: stash + checkpoint + snapshot"; then
+        echo -e "${BLUE}   └─ No se crea el snapshot, no se hace stash.${NC}"
+        echo -e "${BLUE}   └─ Usá 'gk start' sin --dry-run para ejecutar.${NC}"
+        return 0
+    fi
     if ! check_git; then
         return 1
     fi
@@ -678,6 +781,11 @@ start_session() {
     fi
 }
 close_session() {
+    if simulate "Cerrar sesión: exportar config + commit + snapshot + (push opcional)"; then
+        echo -e "${BLUE}   └─ No se commitea ni sube nada.${NC}"
+        echo -e "${BLUE}   └─ Usá 'gk close' sin --dry-run para ejecutar.${NC}"
+        return 0
+    fi
     if ! check_git; then
         return 1
     fi
@@ -779,6 +887,11 @@ merge_protegido() {
     local rama_original
     rama_original=$(git rev-parse --abbrev-ref HEAD)
 
+    if simulate "Merge protegido: $origen → $destino (nivel $nivel) — nada se modifica"; then
+        echo -e "${BLUE}   └─ No se hace merge ni stash.${NC}"
+        return 0
+    fi
+
     if ! git show-ref --verify --quiet "refs/heads/$origen"; then
         echo -e "${RED}❌ La rama '$origen' no existe localmente.${NC}"
         return 1
@@ -867,7 +980,9 @@ mostrar_ayuda() {
     echo "    uso:    merge <origen> <destino> <1|2>"
     echo "  --install-alias - Instala el alias 'gk' en ~/.bash_aliases"
     echo "  help     - Esta ayuda"
-    echo "  info     - Inicializa repo + conexión remota si no existe"
+    echo "  info     - Muestra información detallada del repositorio"
+    echo "Todos los comandos aceptan --dry-run para simular sin ejecutar."
+    echo "Ejemplo:  gk start --dry-run"
     echo ""
     echo "Atajes: s=start, c=close, q=salir (modo interactivo)"
     echo "Sin argumentos: modo interactivo"
@@ -995,6 +1110,22 @@ EOF
 }
 
 main() {
+    # Detectar flag --dry-run (simulación) antes del subcomando
+    local filtered_args=()
+    local arg
+    for arg in "$@"; do
+        case "$arg" in
+            --dry-run|--dry) DRY_RUN=true ;;
+            *) filtered_args+=("$arg") ;;
+        esac
+    done
+    set -- "${filtered_args[@]}"
+
+    if [ "$DRY_RUN" = "true" ]; then
+        echo -e "${BLUE}🔍 [SIMULACIÓN] Activado: los comandos se muestran pero no se ejecutan.${NC}"
+        echo -e "${BLUE}   💡 Sacá --dry-run para ejecutar de verdad.${NC}"
+    fi
+
     if [ $# -gt 0 ]; then
         case $1 in
             start) start_session ;;
@@ -1004,7 +1135,7 @@ main() {
             snapshot) crear_snapshot ;;
             clean) limpiar_snapshots ;;
             merge) shift; merge_protegido "$@" ;;
-            info) check_git && echo "📁 Repositorio: $(pwd)" && echo "🌿 Rama: $(git rev-parse --abbrev-ref HEAD)" ;;
+            info) mostrar_info ;;
             --install-alias) install_alias ;;
             help|--help|-h) mostrar_ayuda ;;
             *) echo -e "${RED}❌ Comando desconocido: $1${NC}"; mostrar_ayuda ;;
