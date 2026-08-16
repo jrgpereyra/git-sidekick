@@ -142,6 +142,23 @@ teardown() {
   ! git log -p --all 2>/dev/null | grep -q "git-sidekick-context"
 }
 
+# ── UX: ONBOARDING + DEV BRANCH CREATION ───────────────────
+
+@test "gk init crea rama dev + onboarding coherente al menu" {
+  local fresh_dir init_output
+  fresh_dir="$(mktemp -d /tmp/bats-fresh-XXXXXX)"
+  init_output=$( (cd "$fresh_dir" && printf '\n\n\n1\n' | "$GKS" 2>&1) || true )
+  # La rama dev debe existir
+  run git --git-dir="$fresh_dir/.git" show-ref --verify --quiet refs/heads/dev
+  [ $status -eq 0 ]
+  # Onboarding con labels EXACTOS del menú interactivo
+  echo "$init_output" | grep -q "Primeros pasos"
+  echo "$init_output" | grep -q "1) INICIAR sesión"
+  echo "$init_output" | grep -q "3) CERRAR sesión"
+  echo "$init_output" | grep -q "gk --dry-run"
+  rm -rf "$fresh_dir"
+}
+
 # ── FRIENDLY ERROR MESSAGES ─────────────────────────────────
 
 @test "merge con rama inexistente: error amigable sin pathspec" {

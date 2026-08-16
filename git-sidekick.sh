@@ -161,7 +161,22 @@ inicializar_repo() {
     if git commit --allow-empty -m "Initial commit" 2>/dev/null; then
         COMMIT_INICIAL="✅"
     fi
-    echo -e "${GREEN}✅ Repositorio Git inicializado.${NC}"
+    say_success "Repositorio Git inicializado ✓"
+
+    # --- Crear rama de desarrollo opcional (UX-2: que exista para merges 9/10) ---
+    local dev_resp
+    read -p "¿Crear también la rama de desarrollo '$DEV_BRANCH'? [Enter=sí]: " dev_resp
+    if [ -z "$dev_resp" ] || [ "$dev_resp" = "s" ] || [ "$dev_resp" = "S" ] || [ "$dev_resp" = "y" ] || [ "$dev_resp" = "Y" ]; then
+        if git show-ref --verify --quiet "refs/heads/$DEV_BRANCH" 2>/dev/null; then
+            say_info "La rama '$DEV_BRANCH' ya existe — no se creó de nueva."
+        elif git checkout -b "$DEV_BRANCH" "$rama_default" 2>/dev/null; then
+            git checkout "$rama_default" 2>/dev/null
+            say_success "Rama '$DEV_BRANCH' creada ✓"
+        else
+            say_warn "No se pudo crear la rama '$DEV_BRANCH'."
+        fi
+    fi
+    echo ""
 
     # Preguntar local o remoto (lista numerada)
     echo ""
@@ -384,6 +399,28 @@ inicializar_repo() {
     return 0
 }
 
+# --- Onboarding TUI: guía visual para novatos recién iniciados ---
+# Se muestra al finalizar la inicialización, solo para repos nuevos.
+mostrar_onboarding() {
+    local sep
+    sep=$(printf '%*s' 42 '' | tr ' ' '─')
+    echo ""
+    printf '┌─%s┐\n' "$sep"
+    echo "│ 🎮 Primeros pasos con git-sidekick"
+    printf '├─%s┤\n' "$sep"
+    echo "│ "
+    echo "│  Desde el menú interactivo:"
+    echo "│    1) INICIAR sesión  (atajo: s)"
+    echo "│    3) CERRAR sesión  (atajo: c) → commitear + tag"
+    echo "│    5) SNAPSHOT (rescate)"
+    echo "│ "
+    echo "│  Desde la terminal:"
+    echo "│    gk start  ·  gk close  ·  gk info"
+    echo "│    gk --dry-run  ←  simulá antes de usar"
+    echo "│ "
+    printf '└─%s┘\n' "$sep"
+}
+
 # --- Función helper: resumen de inicialización ---
 _mostrar_resumen_init() {
     local rama="$1"
@@ -413,7 +450,12 @@ _mostrar_resumen_init() {
     if [ -n "$extra" ]; then
         echo "   ℹ️ $extra"
     fi
-    echo -e "${GREEN}✅ Listo para trabajar.${NC}"
+    if git show-ref --verify --quiet "refs/heads/$DEV_BRANCH" 2>/dev/null; then
+        echo "   🌿 Rama $DEV_BRANCH:     ✅ creada"
+    fi
+    say_success "Repo listo para trabajar ✓"
+    echo ""
+    mostrar_onboarding
 }
 
 tiene_cambios() {
