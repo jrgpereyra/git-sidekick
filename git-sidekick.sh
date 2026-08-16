@@ -14,6 +14,56 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
+# --- Helpers de mensajería amigable (novatos) ---
+say_success()  { echo -e "${GREEN}✅ $*${NC}"; }
+say_error()    { echo -e "${RED}❌ $*${NC}"; }
+say_warn()     { echo -e "${YELLOW}⚠️  $*${NC}"; }
+say_info()     { echo -e "${CYAN}ℹ️  $*${NC}"; }
+say_tip()      { echo -e "${BLUE}💡 $*${NC}"; }
+say_progress() { echo -e "${YELLOW}⏳ $*...${NC}"; }
+
+# --- Listado reutilizable de ramas (para errores amigables) ---
+listar_ramas_disponibles() {
+    echo -e "${BLUE}📋 Ramas disponibles:${NC}"
+    local r _i=1 _actual
+    _actual=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+    while IFS= read -r r; do
+        [ -z "$r" ] && continue
+        if [ "$r" = "$_actual" ]; then
+            echo "  $_i) $r ✓ (actual)"
+        else
+            echo "  $_i) $r"
+        fi
+        _i=$((_i + 1))
+    done < <(git branch --format='%(refname:short)' --sort=-committerdate 2>/dev/null)
+    echo "  0) Crear nueva rama..."
+}
+
+# --- Error contextual: interpreta el error de git y sugiere solución ---
+say_git_error() {
+    local err="$1"
+    case "$err" in
+        *pathspec*|*"no such branch"*|*"not found"*|*"no existe"*|*"No such"*|*"not a git repository"*)
+            if [[ "$err" == *"not a git repository"* ]] || [[ "$err" == *"No es un repositorio"* ]]; then
+                say_error "Esta carpeta no es un repositorio Git."
+                say_tip "Inicializá uno corriendo: gk (o 'git init')"
+            else
+                say_error "La rama solicitada no existe."
+                say_tip "Acá las ramas que tenés:"
+                listar_ramas_disponibles
+            fi
+            ;;
+        *"CONFLICT"*|*"conflict"*|*"conflictos"*)
+            say_warn "Hubo conflictos de merge."
+            say_tip "Abrí los archivos marcados con '<<<<<<<', resolvé, luego: git add . && git commit"
+            ;;
+        *)
+            say_error "git devolvió un error."
+            say_tip "Consultá el detalle técnico: $err"
+            ;;
+    esac
+}
+
 # --- Variables de configuración ---
 WORKLOG_FILE=".git-worklog.md"
 CONTEXT_FILE=".git-sidekick-context"
@@ -390,10 +440,11 @@ stash_auto() {
     case "$respuesta" in
         ""|s|S|y|Y)
             if git stash push -m "Auto-stash antes de cambiar de rama"; then
-                echo -e "${GREEN}✅ Cambios guardados en stash.${NC}"
+                say_success "Cambios guardados en stash ✓"
                 return 0
             else
-                echo -e "${RED}❌ Error al hacer stash.${NC}"
+                say_error "No pude hacer stash."
+                say_tip "Probá manualmente: git stash push -m 'antes-de-cambiar'"
                 return 1
             fi
             ;;
@@ -582,10 +633,11 @@ crear_snapshot() {
         return 0
     fi
     if git tag "$nombre" -m "Snapshot: ${etiqueta:-sin-etiqueta}"; then
-        echo -e "${GREEN}✅ Snapshot creado: $nombre${NC}"
+        say_success "Snapshot creado: $nombre ✓"
         return 0
     else
-        echo -e "${RED}❌ Error al crear snapshot${NC}"
+        say_error "No pude crear el tag '$nombre'."
+        say_tip "Verificá que el nombre no esté repetido y que tengas permisos"
         return 1
     fi
 }
@@ -870,12 +922,15 @@ cambiar_rama() {
     local target_branch="$1"
 
     if [ -z "$target_branch" ]; then
-        echo -e "${RED}❌ Debés especificar el nombre de la rama.${NC}"
+        say_error "Debés especificar el nombre de la rama."
+        say_tip "Ej: 'gk start' (opción 0) para crear una rama nueva"
         return 1
     fi
 
     if ! git show-ref --verify --quiet "refs/heads/$target_branch"; then
-        echo -e "${RED}❌ La rama '$target_branch' no existe localmente.${NC}"
+        say_error "La rama '$target_branch' no existe localmente."
+        say_tip "Acá las ramas que tenés:"
+        listar_ramas_disponibles
         return 1
     fi
 
@@ -885,13 +940,14 @@ cambiar_rama() {
         fi
     fi
 
-    if ! git checkout "$target_branch"; then
-        echo -e "${RED}❌ Error al cambiar de rama a '$target_branch'.${NC}"
+    local err_out
+    if err_out=$(git checkout "$target_branch" 2>&1); then
+        say_success "Cambiado a rama '$target_branch' ✓"
+        return 0
+    else
+        say_git_error "$err_out"
         return 1
     fi
-
-    echo -e "${GREEN}✅ Cambiado a rama '$target_branch'.${NC}"
-    return 0
 }
 merge_protegido() {
     local origen="$1"
@@ -913,11 +969,15 @@ merge_protegido() {
     fi
 
     if ! git show-ref --verify --quiet "refs/heads/$origen"; then
-        echo -e "${RED}❌ La rama '$origen' no existe localmente.${NC}"
+        say_error "La rama '$origen' no existe localmente."
+        say_tip "Listá las ramas disponibles:"
+        listar_ramas_disponibles
         return 1
     fi
     if ! git show-ref --verify --quiet "refs/heads/$destino"; then
-        echo -e "${RED}❌ La rama '$destino' no existe localmente.${NC}"
+        say_error "La rama '$destino' no existe localmente."
+        say_tip "Listá las ramas disponibles:"
+        listar_ramas_disponibles
         return 1
     fi
 
@@ -955,10 +1015,11 @@ merge_protegido() {
         fi
     fi
 
-    if git merge "$origen" --no-edit; then
-        echo -e "${GREEN}✅ Merge completado sin conflictos.${NC}"
+    local merge_out
+    if merge_out=$(git merge "$origen" --no-edit 2>&1); then
+        say_success "Merge completado sin conflictos ✓"
     else
-        echo -e "${RED}❌ Hubo conflictos. Resolvelos manualmente y luego ejecutá: git merge --continue${NC}"
+        say_git_error "$merge_out"
         return 1
     fi
 

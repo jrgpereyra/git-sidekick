@@ -141,3 +141,31 @@ teardown() {
   # El context file no debe aparecer en el historial de commits
   ! git log -p --all 2>/dev/null | grep -q "git-sidekick-context"
 }
+
+# ── FRIENDLY ERROR MESSAGES ─────────────────────────────────
+
+@test "merge con rama inexistente: error amigable sin pathspec" {
+  output=$(printf 'n\n' | "$GKS" merge main dev 1 2>&1 || true)
+  echo "$output" | grep -q "❌"
+  echo "$output" | grep -q "💡"
+  echo "$output" | grep -q "📋 Ramas disponibles"
+  echo "$output" | grep -q "no existe localmente"
+  ! grep -q "pathspec" <<< "$output"
+}
+
+@test "merge con rama origen inexistente: también error amigable" {
+  output=$(printf 'n\n' | "$GKS" merge nonexistent main 1 2>&1 || true)
+  echo "$output" | grep -q "no existe localmente"
+  echo "$output" | grep -q "📋 Ramas disponibles"
+}
+
+@test "snapshot: mensaje de éxito con emoji" {
+  output=$("$GKS" snapshot 2>&1)
+  echo "$output" | grep -q "✅.*Snapshot creado"
+}
+
+@test "snapshot con --dry-run no crea tags (mensajería SIMULACIÓN)" {
+  output=$("$GKS" snapshot --dry-run 2>&1)
+  echo "$output" | grep -q "SIMULACIÓN"
+  ! grep -q "Snapshot creado: work" <<< "$output"
+}
