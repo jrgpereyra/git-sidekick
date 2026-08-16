@@ -31,7 +31,25 @@ load_config() {
     local rc_file=".git-sidekickrc"
     if [ -f "$rc_file" ]; then
         echo -e "${CYAN}⚙️  Cargo config: ${rc_file}${NC}"
-        source "$rc_file" 2>/dev/null
+        local key value key_lower
+        while IFS='=' read -r key value; do
+            [ -z "$key" ] && continue
+            case "$key" in \#*) continue ;; esac
+            key="${key// /}"
+            value="${value%%#*}"
+            value=$(echo "$value" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            key_lower=$(echo "$key" | tr '[:upper:]' '[:lower:]')
+            case "$key_lower" in
+                default_branch)       DEFAULT_BRANCH="$value"       ;;
+                dev_branch)           DEV_BRANCH="$value"           ;;
+                snapshot_prefix)      SNAPSHOT_PREFIX="$value"      ;;
+                auto_stash)           AUTO_STASH="$value"           ;;
+                auto_push)            AUTO_PUSH="$value"            ;;
+                confirm_destructive) CONFIRM_DESTRUCTIVE="$value"   ;;
+                worklog_file)         WORKLOG_FILE="$value"         ;;
+                context_file)         CONTEXT_FILE="$value"         ;;
+            esac
+        done < "$rc_file"
     fi
 }
 load_config
@@ -927,7 +945,7 @@ merge_protegido() {
     # Snapshot de seguridad (nivel 2), después de confirmar y antes del merge
     if [ "$nivel" = "2" ]; then
         local out tag_guardia
-        out=$(crear_snapshot "pre-merge-de-${origen}-a-${destino}" work)
+        out=$(crear_snapshot "pre-merge-de-${origen}-a-${destino}" "$SNAPSHOT_PREFIX")
         tag_guardia=$(echo "$out" | sed 's/\x1b\[[0-9;]*m//g' | sed -n 's/.*Snapshot creado: //p')
         if [ -n "$tag_guardia" ]; then
             echo -e "${YELLOW}🛡️ Snapshot de seguridad creado: ${tag_guardia}${NC}"
@@ -1009,8 +1027,8 @@ mostrar_menu() {
     echo "6) LIMPIAR snapshots"
     echo "7) AYUDA"
     echo "8) SALIR                 (atajo: q)"
-    echo "9) ACTUALIZAR dev con main (main → dev)  [nivel 1]"
-    echo "10) PUBLICAR dev a main    (dev → main)  [nivel 2]"
+    echo "9) ACTUALIZAR ${DEV_BRANCH} con ${DEFAULT_BRANCH} (${DEFAULT_BRANCH} → ${DEV_BRANCH})  [nivel 1]"
+    echo "10) PUBLICAR ${DEV_BRANCH} a ${DEFAULT_BRANCH} (${DEV_BRANCH} → ${DEFAULT_BRANCH})  [nivel 2]"
     echo "11) FUSIONAR personalizado"
     echo "------------------------------------------------"
     read -p "Opción (1-11) [s/c/q]: " opt
@@ -1023,8 +1041,8 @@ mostrar_menu() {
         6) limpiar_snapshots ;;
         7) mostrar_ayuda ;;
         8|[qQ]) echo "👋 Saliendo." ;;
-        9) merge_protegido "main" "dev" "1" ;;
-        10) merge_protegido "dev" "main" "2" ;;
+        9) merge_protegido "${DEFAULT_BRANCH}" "${DEV_BRANCH}" "1" ;;
+        10) merge_protegido "${DEV_BRANCH}" "${DEFAULT_BRANCH}" "2" ;;
         11)
             local _ramas=() _i=1 _actual _r _num_o _num_d _niv_m _orig_m _dest_m
             _actual=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)

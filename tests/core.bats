@@ -62,11 +62,25 @@ teardown() {
   echo "$output" | grep -q "Información del repositorio"
 }
 
-@test "git-sidekickrc override funciona (dev_branch)" {
-  echo "DEV_BRANCH=develop" > .git-sidekickrc
-  run "$GKS" info
-  # El script cargó el rc (no necesariamente usa dev_branch todavía, pero confirma carga)
-  [ -n "$(echo "$output" | grep "Cargo config")" ]
+@test "git-sidekickrc: dev_branch=develop reflejado en el menu" {
+  echo "dev_branch=develop" > .git-sidekickrc
+  git branch develop 2>/dev/null
+  run bash -c "printf '8\n' | $GKS"
+  echo "$output" | grep -q "ACTUALIZAR develop"
+  echo "$output" | grep -q "PUBLICAR develop"
+}
+
+@test "git-sidekickrc: uppercase DEV_BRANCH también funciona" {
+  echo "DEV_BRANCH=staging" > .git-sidekickrc
+  run bash -c "printf '8\n' | $GKS"
+  echo "$output" | grep -q "ACTUALIZAR staging"
+}
+
+@test "git-sidekickrc: espacios y comment inline se ignoran" {
+  printf '  dev_branch = qa # rama de pruebas  \n' > .git-sidekickrc
+  run bash -c "printf '8\n' | $GKS"
+  echo "$output" | grep -q "ACTUALIZAR qa"
+  ! grep -q "qa # rama" <<< "$output"
 }
 
 @test "sin git-sidekickrc, info no muestra mensaje de carga" {
