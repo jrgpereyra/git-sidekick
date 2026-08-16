@@ -764,6 +764,7 @@ start_session() {
         local fecha_tag
         fecha_tag=$(date +%F_%H-%M)
         git add . 2>/dev/null
+        git reset -q HEAD -- "$CONTEXT_FILE" 2>/dev/null || true
         git commit -m "Checkpoint inicio - ${etiqueta:-sin-etiqueta} - ${fecha_tag}" 2>/dev/null
     fi
 
@@ -807,6 +808,7 @@ close_session() {
     fi
 
     git add . 2>/dev/null
+    git reset -q HEAD -- "$CONTEXT_FILE" 2>/dev/null || true
     if tiene_cambios; then
         git commit -m "$mensaje" 2>/dev/null
     else
