@@ -65,20 +65,20 @@ teardown() {
 @test "git-sidekickrc: dev_branch=develop reflejado en el menu" {
   echo "dev_branch=develop" > .git-sidekickrc
   git branch develop 2>/dev/null
-  run bash -c "printf '8\n' | $GKS"
+  run bash -c "printf '11\n' | $GKS"
   echo "$output" | grep -q "ACTUALIZAR develop"
   echo "$output" | grep -q "PUBLICAR develop"
 }
 
 @test "git-sidekickrc: uppercase DEV_BRANCH también funciona" {
   echo "DEV_BRANCH=staging" > .git-sidekickrc
-  run bash -c "printf '8\n' | $GKS"
+  run bash -c "printf '11\n' | $GKS"
   echo "$output" | grep -q "ACTUALIZAR staging"
 }
 
 @test "git-sidekickrc: espacios y comment inline se ignoran" {
   printf '  dev_branch = qa # rama de pruebas  \n' > .git-sidekickrc
-  run bash -c "printf '8\n' | $GKS"
+  run bash -c "printf '11\n' | $GKS"
   echo "$output" | grep -q "ACTUALIZAR qa"
   ! grep -q "qa # rama" <<< "$output"
 }
@@ -147,7 +147,7 @@ teardown() {
 @test "gk init crea rama dev + onboarding coherente al menu" {
   local fresh_dir init_output
   fresh_dir="$(mktemp -d /tmp/bats-fresh-XXXXXX)"
-  init_output=$( (cd "$fresh_dir" && printf '\n\n\n1\n8\n' | "$GKS" 2>&1) || true )
+  init_output=$( (cd "$fresh_dir" && printf '\n\n\n1\n11\n' | "$GKS" 2>&1) || true )
   # La rama dev debe existir
   run git --git-dir="$fresh_dir/.git" show-ref --verify --quiet refs/heads/dev
   [ $status -eq 0 ]
@@ -190,20 +190,20 @@ teardown() {
 # ── UX-3: MENU STATE + MICRO-HINTS ─────────────────────────
 
 @test "menu muestra 'Sesión: inactiva' cuando no hay contexto" {
-  output=$(printf "8\n" | "$GKS" 2>&1 || true)
+  output=$(printf "11\n" | "$GKS" 2>&1 || true)
   echo "$output" | grep -q "Sesión: inactiva"
   echo "$output" | grep -q "usá 's'"
 }
 
 @test "menu muestra 'Sesión: activa' cuando hay contexto guardado" {
   printf "rama=main\nfecha_inicio=2026-01-01_00-00\naccion=inicio\ntag_inicio=work/test\n" > .git-sidekick-context
-  output=$(printf "8\n" | "$GKS" 2>&1 || true)
+  output=$(printf "11\n" | "$GKS" 2>&1 || true)
   echo "$output" | grep -q "Sesión: activa"
   echo "$output" | grep -q "en \[main\]"
 }
 
 @test "start_session incluye micro-hint de guidance" {
-  output=$(printf '1\n1\ntest\n8\n' | "$GKS" 2>&1 || true)
+  output=$(printf '1\n1\ntest\n11\n' | "$GKS" 2>&1 || true)
   echo "$output" | grep -q "SESIÓN INICIADA"
   echo "$output" | grep -q "💡"
   echo "$output" | grep -q "opción 3"
@@ -211,13 +211,13 @@ teardown() {
 
 @test "start_session: Enter defaultea a dev (marca reco" {
   git branch dev
-  output=$(printf '1\n\n\n8\n' | "$GKS" 2>&1 || true)
+  output=$(printf '1\n\n\n11\n' | "$GKS" 2>&1 || true)
   echo "$output" | grep -q "🔹"
   echo "$output" | grep -q "SESIÓN INICIADA en \[dev\]"
 }
 
 @test "start_session: sin dev, Enter defaultea al primer branch" {
-  output=$(printf '1\n\n\n8\n' | "$GKS" 2>&1 || true)
+  output=$(printf '1\n\n\n11\n' | "$GKS" 2>&1 || true)
   ! echo "$output" | grep -q "🔹"
   echo "$output" | grep -q "SESIÓN INICIADA en \[main\]"
 }
@@ -225,7 +225,7 @@ teardown() {
 @test "init: check_git no duplica el mensaje con echo previo" {
   local fresh_dir init_output
   fresh_dir="$(mktemp -d /tmp/bats-fresh-XXXXXX)"
-  init_output=$( (cd "$fresh_dir" && printf '\n\n\n1\n8\n' | "$GKS" 2>&1) || true )
+  init_output=$( (cd "$fresh_dir" && printf '\n\n\n1\n11\n' | "$GKS" 2>&1) || true )
   ! echo "$init_output" | grep -q "❌ No encontré un repositorio Git"
   [ -d "$fresh_dir/.git" ]
   rm -rf "$fresh_dir"
@@ -234,7 +234,7 @@ teardown() {
 @test "init: se queda en la rama dev despues de crearla" {
   local fresh_dir
   fresh_dir="$(mktemp -d /tmp/bats-fresh-XXXXXX)"
-  (cd "$fresh_dir" && printf '\n\n\n1\n8\n' | "$GKS" >/dev/null 2>&1 || true)
+  (cd "$fresh_dir" && printf '\n\n\n1\n11\n' | "$GKS" >/dev/null 2>&1 || true)
   cd "$fresh_dir"
   [ "$(git rev-parse --abbrev-ref HEAD)" = "dev" ]
   rm -rf "$fresh_dir"

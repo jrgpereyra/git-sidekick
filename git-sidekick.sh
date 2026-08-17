@@ -1148,6 +1148,7 @@ mostrar_ayuda() {
 }
 
 # --- Menú principal (loop persistente) ---
+# --- Menú principal (loop persistente) ---
 mostrar_menu() {
     while true; do
         local _rama_actual
@@ -1171,11 +1172,11 @@ mostrar_menu() {
         echo "4) RESTAURAR punto"
         echo "5) SNAPSHOT (rescate)"
         echo "6) LIMPIAR snapshots"
-        echo "7) AYUDA"
-        echo "8) SALIR                 (atajo: q)"
-        echo "9) ACTUALIZAR ${DEV_BRANCH} con ${DEFAULT_BRANCH} (${DEFAULT_BRANCH} → ${DEV_BRANCH})  [nivel 1]"
-        echo "10) PUBLICAR ${DEV_BRANCH} a ${DEFAULT_BRANCH} (${DEV_BRANCH} → ${DEFAULT_BRANCH})  [nivel 2]"
-        echo "11) FUSIONAR personalizado"
+        echo "7) ACTUALIZAR ${DEV_BRANCH} con ${DEFAULT_BRANCH} (${DEFAULT_BRANCH} → ${DEV_BRANCH})  [nivel 1]"
+        echo "8) PUBLICAR ${DEV_BRANCH} a ${DEFAULT_BRANCH} (${DEV_BRANCH} → ${DEV_BRANCH})  [nivel 2]"
+        echo "9) FUSIONAR personalizado"
+        echo "10) AYUDA"
+        echo "11) SALIR                 (atajo: q)"
         echo "------------------------------------------------"
         read -p "Opción (1-11) [s/c/q]: " opt
         case $opt in
@@ -1185,14 +1186,9 @@ mostrar_menu() {
             4) restaurar_snapshot ;;
             5) crear_snapshot ;;
             6) limpiar_snapshots ;;
-            7) mostrar_ayuda ;;
-            8|[qQ])
-                echo "👋 Saliendo."
-                break
-                ;;
-            9) merge_protegido "${DEFAULT_BRANCH}" "${DEV_BRANCH}" "1" ;;
-            10) merge_protegido "${DEV_BRANCH}" "${DEV_BRANCH}" "2" ;;
-            11)
+            7) merge_protegido "${DEFAULT_BRANCH}" "${DEV_BRANCH}" "1" ;;
+            8) merge_protegido "${DEV_BRANCH}" "${DEV_BRANCH}" "2" ;;
+            9)
                 local _ramas=() _i=1 _actual _r _num_o _num_d _niv_m _orig_m _dest_m
                 _actual=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
                 echo -e "${BLUE}📋 Ramas disponibles:${NC}"
@@ -1212,10 +1208,16 @@ mostrar_menu() {
                 _dest_m="${_ramas[$((_num_d-1))]}"
                 merge_protegido "$_orig_m" "$_dest_m" "$_niv_m"
                 ;;
+            10) mostrar_ayuda ;;
+            11|[qQ])
+                echo "👋 Saliendo."
+                break
+                ;;
             *) echo -e "${RED}❌ Opción no válida${NC}" ;;
         esac
     done
 }
+
 
 # --- Punto de entrada ---
 # --- Instalación de alias ---
