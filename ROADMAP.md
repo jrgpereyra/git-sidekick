@@ -116,14 +116,56 @@ La configuración es estática dentro del script (prefijos de tags, nombres de r
   - `"❌ No se pudo crear la rama 'feature-x' porque ya existe. Usá 'feature-x-v2' o cambiá de rama con 'dev'."`
 - **Estado:** ✅ Implementado en v0.2.0 (mensajes con emoji, contexto y sugerencias).
 
+### 4.5 Menú persistente (loop hasta salir)
+- **Problema:** El menú se ejecutaba una vez y devolvía al shell, obligando al usuario a re-ejecutar `gk`.
+- **Solución:** Menú en `while true` que vuelve a mostrarse tras cada acción, hasta `q`/`11) SALIR`.
+- **Estado:** ✅ Implementado en v0.3.0.
+
+### 4.6 Menú reordenado (UX-friendly)
+- **Problema:** `AYUDA` y `SALIR` estaban en medio del menú; las opciones de merge estaban antes que las de rescate.
+- **Solución:** Reordenar por frecuencia de uso y agrupación lógica:
+  1-3) Flujo diario (INICIAR, ESTADO, CERRAR)
+  4-6) Rescate (RESTAURAR, SNAPSHOT, LIMPIAR)
+  7-9) Merge/Publish (ACTUALIZAR, PUBLICAR, FUSIONAR)
+  10-11) Meta (AYUDA, SALIR)
+- **Estado:** ✅ Implementado en v0.3.0.
+
+### 4.7 Detección de repo padre (evita mezclar carpetas)
+- **Problema:** Si una subcarpeta está dentro de un repo Git padre, Git usa el repo padre mezclando archivos.
+- **Solución:** `check_git` detecta si `.git` está en un padre, avisa `"Esto mezclaría tus archivos"` y ofrece crear repo nuevo local.
+- **Estado:** ✅ Implementado en v0.3.0.
+
+### 4.8 Micro-hints post-acción (guía proactiva)
+- **Problema:** Tras cada comando, el usuario novato no sabe qué hacer después.
+- **Solución:** Cada éxito incluye `💡` con el siguiente paso natural (`s` para iniciar, `c` para cerrar, etc.).
+- **Estado:** ✅ Implementado en v0.3.0.
+
+### 4.9 Mensaje final de onboarding (guía de arranque)
+- **Problema:** Tras init + onboarding, el usuario queda en el menú sin guía final.
+- **Solución:** Mensaje final tras onboarding: `"✅ ¡Listo! Tu repo está preparado. Trabajá tranquilo. Recordá: s → trabajá → c para guardar."`
+- **Estado:** ⏳ Pendiente (v0.3.1).
+
+### 4.10 Comando `gk config` (ver/editar .git-sidekickrc)
+- **Problema:** La config se edita a mano; no hay forma asistida de ver/cambiar valores.
+- **Solución:** `gk config` muestra valores actuales y permite editarlos interactivamente.
+- **Estado:** ⏳ Pendiente (v0.3.1).
+
 ### Tareas concretas
 - [x] Numerar listas de snapshots en `restore`, `clean` y `status`.
+- [x] Numerar ramas en `start`, `merge` opción 11, `inicializar_repo`.
 - [ ] Agregar completado de nombres de rama con `compgen` o `fzf`.
-- [ ] Implementar `--dry-run` en todos los subcomandos.
+- [x] Implementar `--dry-run` en todos los subcomandos.
 - [x] Reescribir todos los mensajes de error con contexto y sugerencias.
+- [x] Menú persistente (loop).
+- [x] Menú reordenado (UX).
+- [x] Detección de repo padre.
+- [x] Micro-hints post-acción.
+- [ ] Mensaje final de onboarding (`v0.3.1`).
+- [ ] Comando `gk config` (`v0.3.1`).
+- [ ] Autocompletado de ramas con `compgen`/`fzf` (`v0.4.0`).
 
 ### Prioridad
-⭐⭐ (Media — mejora la experiencia sin cambiar la lógica)
+⭐⭐⭐ (Alta — mejoras de usabilidad impactan directamente la adopción por novatos)
 
 ---
 
