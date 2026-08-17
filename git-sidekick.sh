@@ -118,7 +118,6 @@ check_git() {
     if git rev-parse --git-dir > /dev/null 2>&1; then
         return 0
     else
-        echo -e "${RED}❌ No encontré un repositorio Git en esta carpeta.${NC}"
         inicializar_repo
         local result=$?
         if [ $result -ne 0 ]; then
@@ -168,13 +167,13 @@ inicializar_repo() {
     read -p "¿Crear también la rama de desarrollo '$DEV_BRANCH'? [Enter=sí]: " dev_resp
     if [ -z "$dev_resp" ] || [ "$dev_resp" = "s" ] || [ "$dev_resp" = "S" ] || [ "$dev_resp" = "y" ] || [ "$dev_resp" = "Y" ]; then
         if git show-ref --verify --quiet "refs/heads/$DEV_BRANCH" 2>/dev/null; then
-            say_info "La rama '$DEV_BRANCH' ya existe — no se creó de nueva."
+            say_info "La rama '$DEV_BRANCH' ya existe."
         elif git checkout -b "$DEV_BRANCH" "$rama_default" 2>/dev/null; then
-            git checkout "$rama_default" 2>/dev/null
-            say_success "Rama '$DEV_BRANCH' creada ✓"
+            say_success "Rama '$DEV_BRANCH' creada. Ya estás en ella ✓"
         else
             say_warn "No se pudo crear la rama '$DEV_BRANCH'."
         fi
+        git checkout "$DEV_BRANCH" 2>/dev/null
     fi
     echo ""
 

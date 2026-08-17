@@ -221,3 +221,21 @@ teardown() {
   ! echo "$output" | grep -q "🔹"
   echo "$output" | grep -q "SESIÓN INICIADA en \[main\]"
 }
+
+@test "init: check_git no duplica el mensaje con echo previo" {
+  local fresh_dir init_output
+  fresh_dir="$(mktemp -d /tmp/bats-fresh-XXXXXX)"
+  init_output=$( (cd "$fresh_dir" && printf '\n\n\n1\n' | "$GKS" 2>&1) || true )
+  ! echo "$init_output" | grep -q "❌ No encontré un repositorio Git"
+  [ -d "$fresh_dir/.git" ]
+  rm -rf "$fresh_dir"
+}
+
+@test "init: se queda en la rama dev despues de crearla" {
+  local fresh_dir
+  fresh_dir="$(mktemp -d /tmp/bats-fresh-XXXXXX)"
+  (cd "$fresh_dir" && printf '\n\n\n1\n' | "$GKS" >/dev/null 2>&1 || true)
+  cd "$fresh_dir"
+  [ "$(git rev-parse --abbrev-ref HEAD)" = "dev" ]
+  rm -rf "$fresh_dir"
+}
