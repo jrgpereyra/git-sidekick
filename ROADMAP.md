@@ -200,6 +200,38 @@ La configuración es estática dentro del script (prefijos de tags, nombres de r
 
 ---
 
+## 📦 Release Readiness (v0.3.x → v1.0.0)
+
+### 📦 Instalación one-liner
+- **Problema:** Hoy hay que clonar, chmod, y opcional ln -s manualmente.
+- **Solución:** `curl -fsSL https://git.io/git-sidekick | bash` que detecta OS, instala en `~/.local/bin` o `/usr/local/bin`, configura alias y verifica `gh`/`glab`.
+- **Estado:** ⏳ Pendiente (v0.4.0).
+
+### 🤖 CI/CD con GitHub Actions
+- **Problema:** No hay tests automáticos en push/PR.
+- **Solución:** Workflow que corre `bats tests/core.bats` en Ubuntu/macOS, valida shellcheck, y publica release notes.
+- **Estado:** ⏳ Pendiente (v0.4.0).
+
+### 🌍 Documentación en inglés
+- **Problema:** README solo en español; GitHub es global.
+- **Solución:** `README.en.md` + badge de idioma; mantener sincronizado con `README.md`.
+- **Estado:** ⏳ Pendiente (v0.4.0).
+
+### 📦 Packages nativos
+- **Problema:** Instalación manual; no está en Homebrew/apt/scoop/Chocolatey.
+- **Solución:** Publicar en Homebrew Core, AUR, Scoop, Chocolatey; GitHub Release autogenerado con `goreleaser` o similar.
+- **Estado:** ⏳ Pendiente (v1.0.0).
+
+### 🏷️ Release automation
+- **Problema:** Tags manuales; changelog manual.
+- **Solución:** `release-please` o `semantic-release` que genera changelog desde conventional commits, crea tag, GitHub Release, y actualiza Homebrew formula.
+- **Estado:** ⏳ Pendiente (v1.0.0).
+
+### Prioridad
+⭐⭐⭐ (Alta — sin esto, la adopción externa es difícil)
+
+---
+
 ## 🎯 Criterio de éxito
 
 Al final de la v2, el usuario podrá:
