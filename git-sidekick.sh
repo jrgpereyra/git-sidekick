@@ -118,6 +118,8 @@ check_git() {
     if git rev-parse --git-dir > /dev/null 2>&1; then
         return 0
     else
+        say_warn "✗ No hay un repositorio Git en esta carpeta."
+        say_info "Voy a ayudarte a inicializar uno desde cero."
         inicializar_repo
         local result=$?
         if [ $result -ne 0 ]; then
@@ -138,7 +140,7 @@ inicializar_repo() {
     local visibilidad tipo cli_cmd cli_info remote_url platform_info extra
 
     # Preguntar si inicializar
-    read -p "📁 No encontré un repositorio Git en esta carpeta. ¿Querés inicializar uno ahora? [Enter=sí]: " resp
+    read -p "¿Querés inicializar uno ahora? [Enter=sí]: " resp
     if [ -n "$resp" ] && [ "$resp" != "s" ] && [ "$resp" != "S" ] && [ "$resp" != "y" ] && [ "$resp" != "Y" ]; then
         echo "Cancelado."
         return 1
