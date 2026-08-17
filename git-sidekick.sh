@@ -115,9 +115,31 @@ simulate() {
 
 # --- Funciones auxiliares (vacías) ---
 check_git() {
-    if git rev-parse --git-dir > /dev/null 2>&1; then
-        return 0
+    local git_dir
+    git_dir=$(git rev-parse --git-dir 2>/dev/null)
+    if [ -n "$git_dir" ]; then
+        # Verificar si el .git está EN EL DIRECTORIO ACTUAL (no en un padre)
+        local git_dir_real pwd_real
+        git_dir_real=$(realpath "$git_dir" 2>/dev/null)
+        pwd_real=$(realpath "$PWD" 2>/dev/null)
+        
+        if [[ "$git_dir_real" == "$pwd_real/.git" ]] || [[ "$git_dir_real" == "$pwd_real" ]]; then
+            return 0  # .git está aquí → OK
+        else
+            # .git está en un padre → ADVERTIR
+            say_warn "Hay un repositorio Git en una carpeta padre ($git_dir_real)"
+            say_warn "   Esto mezclaría tus archivos con ese repo."
+            read -p "¿Querés crear un repo NUEVO independiente AQUÍ? [Enter=sí]: " resp
+            if [ -z "$resp" ] || [ "$resp" = "s" ] || [ "$resp" = "S" ] || [ "$resp" = "y" ] || [ "$resp" = "Y" ]; then
+                inicializar_repo
+                return $?
+            else
+                say_info "Usando repo padre. Tené cuidado: verás archivos de toda la carpeta padre."
+                return 0
+            fi
+        fi
     else
+        # No hay repo en ningún lado → ofrecer crear
         say_warn "✗ No hay un repositorio Git en esta carpeta."
         say_info "Voy a ayudarte a inicializar uno desde cero."
         inicializar_repo
