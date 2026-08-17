@@ -147,7 +147,7 @@ teardown() {
 @test "gk init crea rama dev + onboarding coherente al menu" {
   local fresh_dir init_output
   fresh_dir="$(mktemp -d /tmp/bats-fresh-XXXXXX)"
-  init_output=$( (cd "$fresh_dir" && printf '\n\n\n1\n' | "$GKS" 2>&1) || true )
+  init_output=$( (cd "$fresh_dir" && printf '\n\n\n1\n8\n' | "$GKS" 2>&1) || true )
   # La rama dev debe existir
   run git --git-dir="$fresh_dir/.git" show-ref --verify --quiet refs/heads/dev
   [ $status -eq 0 ]
@@ -203,7 +203,7 @@ teardown() {
 }
 
 @test "start_session incluye micro-hint de guidance" {
-  output=$(printf '1\n1\ntest\ntest\nt8\n' | "$GKS" 2>&1 || true)
+  output=$(printf '1\n1\ntest\n8\n' | "$GKS" 2>&1 || true)
   echo "$output" | grep -q "SESIÓN INICIADA"
   echo "$output" | grep -q "💡"
   echo "$output" | grep -q "opción 3"
@@ -225,7 +225,7 @@ teardown() {
 @test "init: check_git no duplica el mensaje con echo previo" {
   local fresh_dir init_output
   fresh_dir="$(mktemp -d /tmp/bats-fresh-XXXXXX)"
-  init_output=$( (cd "$fresh_dir" && printf '\n\n\n1\n' | "$GKS" 2>&1) || true )
+  init_output=$( (cd "$fresh_dir" && printf '\n\n\n1\n8\n' | "$GKS" 2>&1) || true )
   ! echo "$init_output" | grep -q "❌ No encontré un repositorio Git"
   [ -d "$fresh_dir/.git" ]
   rm -rf "$fresh_dir"
@@ -234,7 +234,7 @@ teardown() {
 @test "init: se queda en la rama dev despues de crearla" {
   local fresh_dir
   fresh_dir="$(mktemp -d /tmp/bats-fresh-XXXXXX)"
-  (cd "$fresh_dir" && printf '\n\n\n1\n' | "$GKS" >/dev/null 2>&1 || true)
+  (cd "$fresh_dir" && printf '\n\n\n1\n8\n' | "$GKS" >/dev/null 2>&1 || true)
   cd "$fresh_dir"
   [ "$(git rev-parse --abbrev-ref HEAD)" = "dev" ]
   rm -rf "$fresh_dir"
