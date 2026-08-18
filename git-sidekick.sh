@@ -73,7 +73,7 @@ EOF
     if existing=$(grep -n '^alias gk=' "$alias_file" 2>/dev/null) && [ -n "$existing" ]; then
         echo -e "${YELLOW}⚠️ El alias 'gk' ya existe en $alias_file:${NC}"
         echo "    $existing"
-        read -p "¿Sobrescribir? [Enter=sí/n]" resp
+        read -r -p "¿Sobrescribir? [Enter=sí/n]" resp
         case "$resp" in
             n|N|no|No)
                 echo -e "${YELLOW}Cancelado. El alias no se modificó.${NC}"

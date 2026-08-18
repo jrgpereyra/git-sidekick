@@ -12,14 +12,14 @@ inicializar_repo() {
     local visibilidad tipo cli_cmd cli_info remote_url platform_info extra
 
     # Preguntar si inicializar
-    read -p "¿Querés inicializar uno ahora? [Enter=sí]: " resp
+    read -r -p "¿Querés inicializar uno ahora? [Enter=sí]: " resp
     if [ -n "$resp" ] && [ "$resp" != "s" ] && [ "$resp" != "S" ] && [ "$resp" != "y" ] && [ "$resp" != "Y" ]; then
         echo "Cancelado."
         return 1
     fi
 
     # Preguntar rama por defecto
-    read -p "¿Rama por defecto? (main/master) [main]: " rama_default
+    read -r -p "¿Rama por defecto? (main/master) [main]: " rama_default
     if [ -z "$rama_default" ]; then
         rama_default="main"
     fi
@@ -38,7 +38,7 @@ inicializar_repo() {
 
     # --- Crear rama de desarrollo opcional (UX-2: que exista para merges 9/10) ---
     local dev_resp
-    read -p "¿Crear también la rama de desarrollo '$DEV_BRANCH'? [Enter=sí]: " dev_resp
+    read -r -p "¿Crear también la rama de desarrollo '$DEV_BRANCH'? [Enter=sí]: " dev_resp
     if [ -z "$dev_resp" ] || [ "$dev_resp" = "s" ] || [ "$dev_resp" = "S" ] || [ "$dev_resp" = "y" ] || [ "$dev_resp" = "Y" ]; then
         if git show-ref --verify --quiet "refs/heads/$DEV_BRANCH" 2>/dev/null; then
             say_info "La rama '$DEV_BRANCH' ya existe."
@@ -57,7 +57,7 @@ inicializar_repo() {
     echo "  1) Trabajar en local (sin remoto)"
     echo "  2) Conectar a un remoto (GitHub/GitLab/etc.)"
     local sel_modo
-    read -p "Seleccioná una opción (1-2) [1]: " sel_modo
+    read -r -p "Seleccioná una opción (1-2) [1]: " sel_modo
     if [ -z "$sel_modo" ]; then
         sel_modo=1
     fi
@@ -77,7 +77,7 @@ inicializar_repo() {
     echo "  1) Crear repositorio nuevo"
     echo "  2) Usar repositorio existente"
     local sel_opcion
-    read -p "Seleccioná una opción (1-2) [1]: " sel_opcion
+    read -r -p "Seleccioná una opción (1-2) [1]: " sel_opcion
     if [ -z "$sel_opcion" ]; then
         sel_opcion=1
     fi
@@ -90,7 +90,7 @@ inicializar_repo() {
         echo "  3) Bitbucket"
         echo "  4) Otra"
         local sel_plataforma
-        read -p "Seleccioná una plataforma (1-4) [1]: " sel_plataforma
+        read -r -p "Seleccioná una plataforma (1-4) [1]: " sel_plataforma
         if [ -z "$sel_plataforma" ]; then
             sel_plataforma=1
         fi
@@ -98,7 +98,7 @@ inicializar_repo() {
             1) plataforma="github" ;;
             2) plataforma="gitlab" ;;
             3) plataforma="bitbucket" ;;
-            4) read -p "Nombre de la plataforma: " plataforma
+            4) read -r -p "Nombre de la plataforma: " plataforma
                if [ -z "$plataforma" ]; then
                    plataforma="otra"
                fi
@@ -106,7 +106,7 @@ inicializar_repo() {
             *) echo -e "${RED}❌ Opción inválida.${NC}"; plataforma="github" ;;
         esac
 
-        read -p "Nombre del repositorio: " nombre_repo
+        read -r -p "Nombre del repositorio: " nombre_repo
         if [ -z "$nombre_repo" ]; then
             echo -e "${RED}❌ Debés especificar un nombre para el repositorio.${NC}"
             platform_info="$plataforma"
@@ -119,7 +119,7 @@ inicializar_repo() {
         echo "  1) Público"
         echo "  2) Privado"
         local sel_vis
-        read -p "Seleccioná una opción (1-2) [1]: " sel_vis
+        read -r -p "Seleccioná una opción (1-2) [1]: " sel_vis
         if [ -z "$sel_vis" ] || [ "$sel_vis" = "1" ]; then
             visibilidad="public"
         else
@@ -165,7 +165,7 @@ inicializar_repo() {
 
         # Confirmar
         local confirm
-        read -p "¿Confirmar creación? [Enter=sí]: " confirm
+        read -r -p "¿Confirmar creación? [Enter=sí]: " confirm
         if [ -n "$confirm" ] && [ "$confirm" != "s" ] && [ "$confirm" != "S" ] && [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
             echo "Cancelado."
             platform_info="$plataforma"
@@ -225,9 +225,9 @@ inicializar_repo() {
             echo ""
 
             local connectar
-            read -p "¿Ya creaste el repo y querés que conecte el remoto? [Enter=sí]: " connectar
+            read -r -p "¿Ya creaste el repo y querés que conecte el remoto? [Enter=sí]: " connectar
             if [ -z "$connectar" ] || [ "$connectar" = "s" ] || [ "$connectar" = "S" ] || [ "$connectar" = "y" ] || [ "$connectar" = "Y" ]; then
-                read -p "URL del remote: " remote_url
+                read -r -p "URL del remote: " remote_url
                 if [ -n "$remote_url" ]; then
                     git remote add origin "$remote_url"
                     git branch -M "$rama_default"
@@ -246,7 +246,7 @@ inicializar_repo() {
             fi
         fi
     elif [ "$sel_opcion" = "2" ]; then
-        read -p "URL del remoto: " remote_url
+        read -r -p "URL del remoto: " remote_url
         if [ -z "$remote_url" ]; then
             echo -e "${RED}❌ Debés especificar una URL.${NC}"
             platform_info="usar existente"
@@ -282,7 +282,7 @@ stash_auto() {
     fi
 
     local respuesta
-    read -p "¿Querés hacer stash de los cambios actuales? [Enter=sí]: " respuesta
+    read -r -p "¿Querés hacer stash de los cambios actuales? [Enter=sí]: " respuesta
 
     case "$respuesta" in
         ""|s|S|y|Y)
@@ -503,7 +503,7 @@ restaurar_snapshot() {
     fi
 
     local seleccion
-    read -p "Seleccioná un snapshot (1-${#tags[@]}) [Enter=Cancelar]: " seleccion
+    read -r -p "Seleccioná un snapshot (1-${#tags[@]}) [Enter=Cancelar]: " seleccion
     if [ -z "$seleccion" ]; then
         echo "Operación cancelada."
         return 1
@@ -516,7 +516,7 @@ restaurar_snapshot() {
 
     tag="${tags[$((seleccion-1))]}"
     local confirm
-    read -p "¿Confirmar restauración a ${tag}? [Enter=sí]: " confirm
+    read -r -p "¿Confirmar restauración a ${tag}? [Enter=sí]: " confirm
     if [ -n "$confirm" ] && [ "$confirm" != "s" ] && [ "$confirm" != "S" ] && [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
         echo "Operación cancelada."
         return 1
@@ -582,7 +582,7 @@ limpiar_snapshots() {
         echo "  $i"
     done
     echo ""
-    read -p "¿Confirmar eliminación? [Enter=sí]: " confirm
+    read -r -p "¿Confirmar eliminación? [Enter=sí]: " confirm
     if [ -n "$confirm" ] && [ "$confirm" != "s" ] && [ "$confirm" != "S" ] && [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
         echo "Operación cancelada."
         return 1
@@ -632,14 +632,14 @@ start_session() {
 
     local _default=${_dev_idx:-1}
     local seleccion
-    read -p "Seleccioná una rama (0-${#ramas[@]}) [$_default]: " seleccion
+    read -r -p "Seleccioná una rama (0-${#ramas[@]}) [$_default]: " seleccion
     if [ -z "$seleccion" ]; then
         seleccion=$_default
     fi
 
     local rama
     if [ "$seleccion" = "0" ]; then
-        read -p "Nombre de la nueva rama: " rama
+        read -r -p "Nombre de la nueva rama: " rama
         if [ -z "$rama" ]; then
             echo -e "${RED}❌ Debés especificar un nombre.${NC}"
             return 1
@@ -664,7 +664,7 @@ start_session() {
     fi
 
     local etiqueta
-    read -p "¿Etiqueta para la sesión? (opcional): " etiqueta
+    read -r -p "¿Etiqueta para la sesión? (opcional): " etiqueta
 
     if tiene_cambios; then
         local fecha_tag
@@ -709,7 +709,7 @@ close_session() {
     fecha=$(date +%F_%H-%M)
     local mensaje_sugerido="Sesión en ${rama} - ${fecha}"
     local mensaje
-    read -p "Mensaje de commit [Enter para usar sugerido: 'Sesión en <rama> - <fecha>']: " mensaje
+    read -r -p "Mensaje de commit [Enter para usar sugerido: 'Sesión en <rama> - <fecha>']: " mensaje
     if [ -z "$mensaje" ]; then
         mensaje="$mensaje_sugerido"
     fi
@@ -723,7 +723,7 @@ close_session() {
     fi
 
     local etiqueta
-    read -p "¿Etiqueta para snapshot de cierre? (opcional): " etiqueta
+    read -r -p "¿Etiqueta para snapshot de cierre? (opcional): " etiqueta
 
     local snapshot_out snapshot_tag
     snapshot_out=$(crear_snapshot "$etiqueta")
@@ -747,7 +747,7 @@ close_session() {
     log_work "$block"
 
     local push_confirm
-    read -p "¿Subir cambios a la nube? [Enter=sí]: " push_confirm
+    read -r -p "¿Subir cambios a la nube? [Enter=sí]: " push_confirm
     if [ -z "$push_confirm" ] || [ "$push_confirm" = "s" ] || [ "$push_confirm" = "S" ] || [ "$push_confirm" = "y" ] || [ "$push_confirm" = "Y" ]; then
         git push origin "$rama" 2>/dev/null
     fi
@@ -827,7 +827,7 @@ merge_protegido() {
     fi
     echo -e "${CYAN}📋 Commits a fusionar ($origen → $destino):${NC}"
     git log --oneline "${destino}..${origen}" | head -30
-    read -p "¿Confirmar? [Enter=sí]: " confirmacion
+    read -r -p "¿Confirmar? [Enter=sí]: " confirmacion
     if [ "$confirmacion" = "n" ] || [ "$confirmacion" = "N" ]; then
         echo -e "${YELLOW}Operación cancelada. Volviendo a '$rama_original'.${NC}"
         git checkout "$rama_original" 2>/dev/null
@@ -864,7 +864,7 @@ merge_protegido() {
 
     if [ "$nivel" = "2" ]; then
         local conf
-        read -p "¿Querés subir los cambios de '$destino' a la nube? [Enter=sí]: " conf
+        read -r -p "¿Querés subir los cambios de '$destino' a la nube? [Enter=sí]: " conf
         if [ -z "$conf" ] || [ "$conf" = "s" ] || [ "$conf" = "S" ] || [ "$conf" = "y" ] || [ "$conf" = "Y" ]; then
             if git push origin "$destino"; then
                 echo -e "${GREEN}✅ '$destino' subido a la nube.${NC}"
@@ -875,7 +875,7 @@ merge_protegido() {
     fi
 
     local conf2
-    read -p "¿Volver a la rama original '$rama_original'? [Enter=sí]: " conf2
+    read -r -p "¿Volver a la rama original '$rama_original'? [Enter=sí]: " conf2
     if [ -z "$conf2" ] || [ "$conf2" = "s" ] || [ "$conf2" = "S" ] || [ "$conf2" = "y" ] || [ "$conf2" = "Y" ]; then
         cambiar_rama "$rama_original" 2>/dev/null
     fi

@@ -132,7 +132,7 @@ mostrar_menu() {
         echo "10) AYUDA"
         echo "11) SALIR                 (atajo: q)"
         echo "------------------------------------------------"
-        read -p "Opción (1-11) [s/c/q]: " opt
+        read -r -p "Opción (1-11) [s/c/q]: " opt
         case $opt in
             1|[sS]) start_session ;;
             2) mostrar_estado ;;
@@ -155,9 +155,9 @@ mostrar_menu() {
                     fi
                     _ramas+=("$_r"); _i=$((_i+1))
                 done < <(git for-each-ref --format='%(refname:short)' refs/heads/)
-                read -p "Número de rama origen: " _num_o
-                read -p "Número de rama destino: " _num_d
-                read -p "Nivel de protección (1/2): " _niv_m
+                read -r -p "Número de rama origen: " _num_o
+                read -r -p "Número de rama destino: " _num_d
+                read -r -p "Nivel de protección (1/2): " _niv_m
                 _orig_m="${_ramas[$((_num_o-1))]}"
                 _dest_m="${_ramas[$((_num_d-1))]}"
                 merge_protegido "$_orig_m" "$_dest_m" "$_niv_m"

@@ -63,7 +63,7 @@ check_git() {
             # .git está en un padre → ADVERTIR
             say_warn "Hay un repositorio Git en una carpeta padre ($git_dir_real)"
             say_warn "   Esto mezclaría tus archivos con ese repo."
-            read -p "¿Querés crear un repo NUEVO independiente AQUÍ? [Enter=sí]: " resp
+            read -r -p "¿Querés crear un repo NUEVO independiente AQUÍ? [Enter=sí]: " resp
             if [ -z "$resp" ] || [ "$resp" = "s" ] || [ "$resp" = "S" ] || [ "$resp" = "y" ] || [ "$resp" = "Y" ]; then
                 inicializar_repo
                 return $?
