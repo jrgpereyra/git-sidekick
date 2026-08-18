@@ -5,7 +5,7 @@
 ![Hecho con](https://img.shields.io/badge/hecho%20con-Bash-4979e0.svg)
 
 > **Asistente universal de Git para novatos.**  
-> Un script **Bash** que simplifica tu flujo de trabajo con Git mediante un menú interactivo y comandos directos. Ideal para quienes arrancan y para equipos que trabajan con asistentes de IA.
+> Un script **Bash modular** (header `git-sidekick.sh` + `lib/*.sh`) que simplifica tu flujo de trabajo con Git mediante un **menú interactivo** y comandos directos. Ideal para quienes arrancan y para equipos que trabajan con asistentes de IA.
 
 ---
 
@@ -55,26 +55,27 @@
 
 ## Instalación
 
-1. Cloná el repositorio:
-
 ```bash
 git clone https://github.com/jrgpereyra/git-sidekick.git
 cd git-sidekick
-```
-
-2. Dale permiso de ejecución:
-
-```bash
 chmod +x git-sidekick.sh
 ```
 
-3. *(Opcional)* Agregalo al `PATH` para usarlo desde cualquier carpeta:
+Elegí cómo lo querés tener disponible:
+
+- **Opción 1 — alias `gk` (recomendado):** un alias de una sola palabra. → [Alias para uso rápido](#alias-para-uso-rápido).
+- **Opción 2 — comando global `git-sidekick`:** copiado a `~/scripts/` y agregado al `PATH` (ver abajo).
+
+### Opción 2: copiar a `~/scripts/` y agregar al `PATH`
 
 ```bash
-ln -s "$PWD/git-sidekick.sh" /usr/local/bin/git-sidekick
+mkdir -p ~/scripts
+cp "$PWD/git-sidekick.sh" ~/scripts/git-sidekick
+echo 'export PATH="$HOME/scripts:$PATH"' >> ~/.bashrc
+source ~/.bashrc
 ```
 
-> A partir de ahí podés invocar `git-sidekick` desde cualquier directorio que contenga un repo Git.
+> A partir de ahí podés invocar `git-sidekick` (o `gk` vía alias) desde cualquier directorio que contenga un repo Git.
 
 ---
 
@@ -196,9 +197,9 @@ confirm_destructive=true     # ¿confirmación doble antes de reset --hard?
 
 > 💡 `.git-sidekickrc` está en el `.gitignore` por defecto. Si querés versionarlo para compartir con tu equipo, ejecutá `git add -f .git-sidekickrc`.
 
-## Simulación con `--dry-run`
+## Modo seguro (`--dry-run`)
 
-> **Nuevo en v0.3.0**
+> **Nuevo en v0.3.0 — Modo seguro:** simulá cualquier comando sin ejecutarlo (preview seguro antes de un cambio grande).
 
 El flag **`--dry-run`** te permite ver **qué haría** el script **sin ejecutar nada**. Ideal para novatos que quieren entender antes de aplicar:
 
@@ -272,6 +273,8 @@ Opción (1-11) [s/c/q]:
 ## Flujo de trabajo recomendado
 
 Trabajás con una **sesión**: cada vez que empezás una tarea, iniciás; cuando la terminás, la cerrás. El script gestiona stash, checkpoints y la bitácora por vos.
+
+> 💡 **Antes de empezar:** si la carpeta no es un repo Git, `git-sidekick` lo inicializa **automáticamente** al entrar (o ejecutá `git-sidekick info` para crearlo). Una vez listo el repo, iniciá sesión:
 
 ```bash
 # 1️⃣ Empezar a trabajar en una rama nueva
@@ -450,4 +453,3 @@ Copyright (c) 2026 Jorge Pereyra
 Se concede permiso, gratuitamente, a cualquier persona que obtenga una copia
 de este software y los archivos de documentación asociados...
 ```
-## Cambio de prueba en el repo real
