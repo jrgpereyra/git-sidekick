@@ -4,8 +4,17 @@
 # Extraído de git-sidekick.sh para modularización (ROADMAP v2.0, Sesión 3)
 # Requiere: lib/colors.sh, lib/config.sh, lib/git-helpers.sh, lib/ui.sh
 # =============================================================================
+# Flujo: lógica de negocio. inicializar_repo; gestión de sesiones
+# (start_session/close_session/cambiar_rama); snapshots (crear/listar/restaurar/
+# limpiar) y merges protegidos. Coordina git helpers + UI y persiste la bitácora.
 
 # --- Función de inicialización automática ---
+# --- FUNCIÓN: inicializar_repo ---
+# PROPÓSITO: crear el repo local (git init/clone), rama dev y/o conectar remote.
+# PARÁMETROS: $1 = URL opcional a clonar (si no, git init + rama dev local).
+# RETORNA: 0 si ok, 1 si se cancela o falla.
+# POR QUÉ: la rama dev se crea/renombra desde DEFAULT_BRANCH para flujo consistente.
+# NOTA: se preserva # shellcheck disable=SC2034 porque COMMIT_INICIAL se setea aquí.
 # shellcheck disable=SC2034 # COMMIT_INICIAL se asigna aquí y se lee en _mostrar_resumen_init (lib/ui.sh)
 inicializar_repo() {
     local resp rama_default plataforma nombre_repo
@@ -272,6 +281,12 @@ inicializar_repo() {
     return 0
 }
 
+# --- FUNCIÓN: stash_auto ---
+# PROPÓSITO: stashear cambios no commiteados tras confirmación del usuario.
+# PARÁMETROS: (ninguno; pregunta interactivamente vía read -r -p).
+# RETORNA: 0 si se stasheó o no había cambios, 1 si se cancela o falla el stash.
+# POR QUÉ: cambiar de rama con cambios sin stash puede perderlos inesperadamente.
+# NOTA: read -r evita mangling; ""|s|S|y|Y acepta Enter/sí/Enter-default.
 stash_auto() {
     if simulate "Hacer stash de cambios no commiteados (git stash)"; then
         return 0
@@ -306,6 +321,12 @@ stash_auto() {
     esac
 }
 # --- Función de info detallado ---
+# --- FUNCIÓN: mostrar_info ---
+# PROPÓSITO: imprimir un reporte íntegro del repo (rama, remote, ahead/behind, tags, sesión).
+# PARÁMETROS: (ninguno; lee estado de git).
+# RETORNA: 0 si check_git ok, 1 si no es repo.
+# POR QUÉ: ejecuta `git fetch --all --prune` para que ahead/behind estén actualizados.
+# NOTA: recorta a 15 líneas de status para no inundar la pantalla.
 mostrar_info() {
     if ! check_git; then
         return 1
@@ -370,6 +391,12 @@ mostrar_info() {
     fi
 }
 
+# --- FUNCIÓN: mostrar_estado ---
+# PROPÓSITO: mostrar estado rápido: rama actual, ahead/behind y archivos modificados.
+# PARÁMETROS: (ninguno).
+# RETORNA: 0 (siempre).
+# POR QUÉ: es el "status" ligero del menú (opción 2).
+# NOTA: el tip final orienta al usuario al siguiente paso del workflow (s/5).
 mostrar_estado() {
     git fetch --all --prune > /dev/null 2>&1
 
@@ -400,6 +427,12 @@ mostrar_estado() {
 }
 
 # --- Funciones de bitácora ---
+# --- FUNCIÓN: log_work ---
+# PROPÓSITO: appendear un bloque de texto a la bitácora de trabajo (WORKLOG_FILE).
+# PARÁMETROS: $1 = bloque a grabar (se escribe literal al final del archivo).
+# RETORNA: 0.
+# POR QUÉ: la bitácora registra cierres de sesión para auditoría ligera.
+# NOTA: crea el archivo con header "# Bitácora de trabajo" si no existe.
 log_work() {
     local bloque="$1"
     if [ ! -f "$WORKLOG_FILE" ]; then
@@ -407,6 +440,12 @@ log_work() {
     fi
     echo "$bloque" >> "$WORKLOG_FILE"
 }
+# --- FUNCIÓN: guardar_contexto ---
+# PROPÓSITO: persistir la sesión activa (rama, fecha, acción, tag inicio) en CONTEXT_FILE.
+# PARÁMETROS: $1=rama, $2=accion, $3=tag_inicio.
+# RETORNA: 0.
+# POR QUÉ: CONTEXT_FILE resume la sesión para recuperarla entre invocaciones.
+# NOTA: formato "clave=valor" es legible y parseable por leer_contexto.
 guardar_contexto() {
     local rama="$1"
     local accion="$2"
@@ -420,6 +459,12 @@ guardar_contexto() {
         echo "tag_inicio=${tag}"
     } > "$CONTEXT_FILE"
 }
+# --- FUNCIÓN: leer_contexto ---
+# PROPÓSITO: leer e informar la sesión previa guardada en CONTEXT_FILE (si existe).
+# PARÁMETROS: (ninguno; lee $CONTEXT_FILE).
+# RETORNA: 0 (informa "sin sesión" si no hay archivo).
+# POR QUÉ: permite a start/close reconocer sesiones previas (no perder el contexto).
+# NOTA: while IFS='=' read -r parsea k=v sin mangling (SC2162 cumplido).
 leer_contexto() {
     if [ -f "$CONTEXT_FILE" ]; then
         local rama="" fecha_inicio="" accion=""
@@ -435,6 +480,11 @@ leer_contexto() {
         echo "📌 Sin sesión previa registrada."
     fi
 }
+# --- FUNCIÓN: limpiar_contexto ---
+# PROPÓSITO: borrar el archivo de contexto (finaliza/recupera la sesión activa).
+# PARÁMETROS: (ninguno).
+# RETORNA: 0.
+# POR QUÉ: close_session limpia contexto al terminar; evita sesión fantasma.
 limpiar_contexto() {
     if [ -f "$CONTEXT_FILE" ]; then
         rm -f "$CONTEXT_FILE"
@@ -442,6 +492,12 @@ limpiar_contexto() {
 }
 
 # --- Funciones de snapshots ---
+# --- FUNCIÓN: crear_snapshot ---
+# PROPÓSITO: crear un tag de snapshot de seguridad work/<fecha>[-<etiqueta>].
+# PARÁMETROS: $1 = etiqueta legible (opcional). $2 = prefijo del tag (default: work).
+# RETORNA: 0 si creó (o simuló), 1 si falla.
+# POR QUÉ: los snapshots son puntos de rescate antes de operaciones riesgosas.
+# NOTA: read -r no aplica; el tag se normaliza a nombre válido de git (ver NOTA inline).
 crear_snapshot() {
     local etiqueta="$1"
     local prefijo="${2:-work}"
@@ -449,6 +505,9 @@ crear_snapshot() {
     fecha=$(date +%Y-%m-%d_%H-%M)
     local etiqueta_limpia=""
     if [ -n "$etiqueta" ]; then
+        # NOTA: se normaliza a minúsculas y se reemplazan no-alfanuméricos por '-'
+        #   (collapse de guiones + trim extremos) porque los tags de git rechazan
+        #   mayúsculas, espacios y caracteres especiales en el nombre.
         etiqueta_limpia=$(echo "$etiqueta" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-//' | sed 's/-$//')
     fi
     local nombre
@@ -471,6 +530,12 @@ crear_snapshot() {
         return 1
     fi
 }
+# --- FUNCIÓN: listar_snapshots ---
+# PROPÓSITO: listar snapshots work/* ordenados por fecha (más reciente primero).
+# PARÁMETROS: (ninguno; lee `git tag`).
+# RETORNA: 0 (imprime "No hay snapshots" si la lista vacía).
+# POR QUÉ: permite al usuario elegir qué punto restaurar (opción 4).
+# NOTA: while + <<< (here-string) evita subshell y no pierde la lista.
 listar_snapshots() {
     local tags
     tags=$(git tag --list 'work/*' --sort=-creatordate)
@@ -485,6 +550,12 @@ listar_snapshots() {
         echo "$tag  ($fecha_tag)"
     done <<< "$tags"
 }
+# --- FUNCIÓN: restaurar_snapshot ---
+# PROPÓSITO: elegir y restaurar (git reset --hard) un snapshot work/* existente.
+# PARÁMETROS: (ninguno; interacción vía read -r -p).
+# RETORNA: 0 si restauró, 1 si se cancela/selección inválida/error.
+# POR QUÉ: reset --hard vuelve al árbol exacto del snapshot (punto de rescate).
+# NOTA: advierte que se pierden cambios no guardados (destructivo).
 restaurar_snapshot() {
     local tags=() tag _i _fecha_tag
     _i=1
@@ -531,6 +602,12 @@ restaurar_snapshot() {
         return 1
     fi
 }
+# --- FUNCIÓN: limpiar_snapshots ---
+# PROPÓSITO: podar snapshots viejos: conserva 1/semana (≤30 días), borra >30 días.
+# PARÁMETROS: (ninguno; confirmación vía read -r -p).
+# RETORNA: 0 si ok, 1 si se cancela.
+# POR QUÉ: evita que work/* crezca indefinidamente (retención semanal).
+# NOTA: compara edades como epoch (date -d +%s) para evitar problemas de locale.
 limpiar_snapshots() {
     local tags
     tags=$(git tag --list 'work/*' --sort=-creatordate)
@@ -596,6 +673,13 @@ limpiar_snapshots() {
 }
 
 # --- Funciones de flujo principal ---
+# --- FUNCIÓN: start_session ---
+# PROPÓSITO: iniciar sesión: estado + stash opcional + checkpoint + snapshot de inicio.
+# PARÁMETROS: (ninguno; interacción vía read -r -p).
+# RETORNA: 0 si inició, 1 si se cancela/falla.
+# POR QUÉ: crea un tag de inicio (work/...) para poder "deshacer" hasta aquí.
+# NOTA: `git reset -q HEAD -- "$CONTEXT_FILE"` evita commitear el contexto de sesión
+#   (debe quedar local; se guarda sólo en working tree, no en el commit).
 start_session() {
     if simulate "Iniciar sesión: stash + checkpoint + snapshot"; then
         echo -e "${BLUE}   └─ No se crea el snapshot, no se hace stash.${NC}"
@@ -627,6 +711,8 @@ start_session() {
         echo "  $_i) $_r$_marker"
         ramas+=("$_r")
         _i=$((_i+1))
+    # NOTA: <(...) process substitution en vez de pipe: un pipe crea subshell y
+    #   perdería el array `ramas[]` (quedaría vacío fuera del subshell).
     done < <(git branch --format='%(refname:short)')
     echo "  0) Crear nueva rama..."
 
@@ -688,6 +774,12 @@ start_session() {
         return 1
     fi
 }
+# --- FUNCIÓN: close_session ---
+# PROPÓSITO: cerrar sesión: commitea, snapshot de cierre, push opcional, limpia contexto.
+# PARÁMETROS: (ninguno; interacción vía read -r -p).
+# RETORNA: 0 si cerró, 1 si se cancela/falla.
+# POR QUÉ: registra el cierre en la bitácora (log_work) para trazabilidad.
+# NOTA: `git reset -q HEAD -- "$CONTEXT_FILE"` impide versionar el contexto de sesión.
 close_session() {
     if simulate "Cerrar sesión: exportar config + commit + snapshot + (push opcional)"; then
         echo -e "${BLUE}   └─ No se commitea ni sube nada.${NC}"
@@ -756,6 +848,12 @@ close_session() {
     say_success "SESIÓN CERRADA. Todo guardado ✓"
     say_tip "Iniciá otra con 's' (opción 1), o restaurá un point con '4'."
 }
+# --- FUNCIÓN: cambiar_rama ---
+# PROPÓSITO: cambiar de rama, stasheando cambios previos si los hay (con confirmación).
+# PARÁMETROS: $1 = rama destino.
+# RETORNA: 0 si cambió, 1 si no existe/cancela/falla.
+# POR QUÉ: stash_auto protege cambios al hacer checkout a otra rama.
+# NOTA: usa git show-ref --verify para chequear existencia (más estable que `git branch`).
 cambiar_rama() {
     local target_branch="$1"
 
@@ -788,6 +886,12 @@ cambiar_rama() {
         return 1
     fi
 }
+# --- FUNCIÓN: merge_protegido ---
+# PROPÓSITO: fusionar origen→destino con protección (snapshot previo + confirmaciones).
+# PARÁMETROS: $1=origen, $2=destino, $3=nivel (1 simple / 2 estricto).
+# RETORNA: 0 si ok, 1 si falla/cancela.
+# POR QUÉ: nivel 2 crea un tag guardia antes del merge (rollback seguro).
+# NOTA: nivel 1 = merge directo; nivel 2 = snapshot+merge+push+rollback a rama original.
 merge_protegido() {
     local origen="$1"
     local destino="$2"
@@ -855,6 +959,7 @@ merge_protegido() {
     fi
 
     local merge_out
+    # NOTA: --no-edit usa el mensaje de merge por defecto y no abre editor (no interactivo).
     if merge_out=$(git merge "$origen" --no-edit 2>&1); then
         say_success "Merge completado sin conflictos ✓"
     else

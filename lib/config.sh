@@ -4,6 +4,8 @@
 # Extraído de git-sidekick.sh para modularización (ROADMAP v2.0, Sesión 1)
 # Requiere: lib/colors.sh (sourceado antes, para mensajes de status)
 # =============================================================================
+# Flujo: define defaults globales (DEV_BRANCH, WORKLOG_FILE, etc.) y parsea
+# .git-sidekickrc/.env con case-insensitive. Se sourcea tras colors, antes del resto.
 
 # --- Variables de configuración (defaults) ---
 WORKLOG_FILE=".git-worklog.md"
@@ -19,8 +21,12 @@ AUTO_PUSH=false            # push automático? (false = seguro)
 CONFIRM_DESTRUCTIVE=true   # confirmación doble en reset --hard
 
 # --- Parser de .git-sidekickrc ---
-# Lee pares clave=valor del archivo de configuración del proyecto.
-# Las claves se normalizan a minúsculas (case-insensitive).
+# --- FUNCIÓN: load_config ---
+# PROPÓSITO: cargar .git-sidekickrc y .env, normalizando claves a minúsculas.
+# PARÁMETROS: (ninguno; lee $GIT_SIDEKICK_DIR/.git-sidekickrc y .env del cwd).
+# RETORNA: 0 siempre; define vars globales (DEV_BRANCH, GIT_SIDEKICK_DIR, DRY_RUN...).
+# POR QUÉ: .env sobre-escribe a .git-sidekickrc (overrides por entorno, convención 12-factor).
+# NOTA: las claves se lower-casean para que Dev_Branch == dev_branch.
 load_config() {
     local rc_file=".git-sidekickrc"
     if [ -f "$rc_file" ]; then

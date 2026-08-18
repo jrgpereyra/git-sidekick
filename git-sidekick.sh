@@ -6,6 +6,9 @@
 # Licencia: MIT
 # =============================================================================
 
+# Flujo: entry point de git-sidekick. Valida git, sourcea módulos lib/* y despacha a main().
+#   Orden de sourceo: colors → config → git-helpers → ui → workflow → plugins → ddev.
+# (mantener la validación temprana de git ANTES de sourcear — falla rápido)
 # --- Validación temprana: git es un requisito duro ---
 if ! command -v git >/dev/null 2>&1; then
     echo -e "\033[0;31m❌ git no está instalado.\033[0m"
@@ -36,8 +39,16 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib/plugins.sh"
 # shellcheck source=lib/ddev.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib/ddev.sh"
 
+# NOTA: los módulos se sourcean en orden de dependencia; cada source usa
+#   BASH_SOURCE[0] (path robusto) y `# shellcheck source=` documenta el intento.
 # --- Punto de entrada ---
 # --- Instalación de alias ---
+# --- FUNCIÓN: install_alias ---
+# PROPÓSITO: instalar el alias `gk` en ~/.bash_aliases (alias gk="...script...").
+# PARÁMETROS: (ninguno; --local no está implementado → usa ~/.bash_aliases).
+# RETORNA: 0 si el alias quedó listo, 1 si se cancela (existía y no se sobre-escribe).
+# POR QUÉ: reescribe la línea vía grep>tmp+mv (portable) en vez de `sed -i` (BSD/macOS).
+# NOTA: script_path resuelve realpath→readlink→$PWD/$0 (3 niveles de fallback robusto).
 install_alias() {
     local script_path alias_file alias_line existing resp tmp
     # Ruta absoluta del script (realpath > readlink > fallback sobre $0)
@@ -98,6 +109,12 @@ EOF
     return 0
 }
 
+# --- FUNCIÓN: main ---
+# PROPÓSITO: parsear flags (--dry-run/--help) y despachar el subcomando solicitado.
+# PARÁMETROS: $@ = CLI args (flags + subcomando + args del subcomando).
+# RETORNA: 0 si la acción se completó/simuló, 1 si check_git falla o comando desconocido.
+# POR QUÉ: --dry-run se filtra ANTES del subcomando (el caller no debe ver la flag).
+# NOTA: sin args → check_git + menú interactivo; con args → despacho directo al workflow.
 main() {
     # Detectar flag --dry-run (simulación) antes del subcomando
     local filtered_args=()

@@ -5,11 +5,20 @@
 # Requiere: lib/colors.sh (para say_* y variables de color)
 #           lib/config.sh (para DEFAULT_BRANCH, DEV_BRANCH, CONTEXT_FILE, etc.)
 # =============================================================================
+# Flujo: UI del agente. simulate() gatea dry-run; mostrar_onboarding() guía a
+# novatos; _mostrar_resumen_init() imprime el resumen de init; mostrar_menu()
+# es el loop interactivo persistente; mostrar_ayuda() imprime la ayuda.
 
 # --- Flag de simulación ---
 DRY_RUN=false
 
 # --- Simulación / Dry-run ---
+# --- FUNCIÓN: simulate ---
+# PROPÓSITO: en modo --dry-run, anunciar y retornar true (SIMULAR) efectos secundarios.
+# PARÁMETROS: $1 = descripción legible del efecto a simular.
+# RETORNA: 0 (true) si simuló, 1 (false) en modo real (caller ejecuta de verdad).
+# POR QUÉ: centraliza el gate DRY_RUN para que ningún comando dependa de la flag.
+# NOTA: los callers usan `if simulate "..."; then return; fi` para cortar en dry-run.
 simulate() {
     if [ "$DRY_RUN" = "true" ]; then
         echo -e "${BLUE}🔍 [SIMULACIÓN] $*${NC}"
@@ -19,7 +28,12 @@ simulate() {
 }
 
 # --- Onboarding TUI: guía visual para novatos recién iniciados ---
-# Se muestra al finalizar la inicialización, solo para repos nuevos.
+# --- FUNCIÓN: mostrar_onboarding ---
+# PROPÓSITO: guía visual de bienvenida (solo para repos recién inicializados).
+# PARÁMETROS: (ninguno).
+# RETORNA: 0.
+# POR QUÉ: evita ruido: se muestra UNA vez al finalizar una init nueva, no cada vez.
+# NOTA: usa caja dibujada (┌┐│└) para una presentación amistosa en terminal.
 mostrar_onboarding() {
     local sep
     sep=$(printf '%*s' 42 '' | tr ' ' '─')
@@ -41,6 +55,12 @@ mostrar_onboarding() {
 }
 
 # --- Función helper: resumen de inicialización ---
+# --- FUNCIÓN: _mostrar_resumen_init ---
+# PROPÓSITO: imprimir el resumen final de la inicialización del repo.
+# PARÁMETROS: $1=rama, $2=remote_url, $3=platform_info, $4=cli_info, $5=extra.
+# RETORNA: 0.
+# POR QUÉ: consolida en un vistazo estado rama/remote/plataforma tras la init.
+# NOTA: el guion bajo (_) marca helper interno (no debe llamarse directamente).
 _mostrar_resumen_init() {
     local rama="$1"
     local remote_url="$2"
@@ -78,6 +98,11 @@ _mostrar_resumen_init() {
 }
 
 # --- Función de ayuda ---
+# --- FUNCIÓN: mostrar_ayuda ---
+# PROPÓSITO: imprimir la ayuda/usage de git-sidekick (comandos y flags).
+# PARÁMETROS: (ninguno).
+# RETORNA: 0.
+# POR QUÉ: fuente única de verdad para el uso (invocado por --help y comandos desconocidos).
 mostrar_ayuda() {
     echo "========================================="
     echo -e "${CYAN}📘 git-sidekick - Asistente de Git${NC}"
@@ -103,6 +128,12 @@ mostrar_ayuda() {
 }
 
 # --- Menú principal (loop persistente) ---
+# --- FUNCIÓN: mostrar_menu ---
+# PROPÓSITO: mostrar el menú interactivo (1-11) y ejecutar la opción elegida en loop.
+# PARÁMETROS: (ninguno; interacción vía read -r -p).
+# RETORNA: 0 al salir (opción 11/q); caso contrario el código de la sub-acción elegida.
+# POR QUÉ: loop persistente → el usuario navega sin salir y volver a invocar.
+# NOTA: read -r evita mangling de backslashes; -p deja el prompt en la misma línea.
 mostrar_menu() {
     while true; do
         local _rama_actual opt
