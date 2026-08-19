@@ -229,3 +229,15 @@ gnpm install                       # después de merge
 | **Tests con `bats-core`** | ⏳ Pendiente |
 | **Plugin Astro** | ⏳ Pendiente (proyecto Astro definido) |
 | **Plugin Drupal/DDEV** | ⏳ Postergado (referencia: `id10-control-simple.sh`) |
+
+---
+
+## 🚧 Próximas tareas técnicas
+
+- [ ] **Workflow CI/CD (GitHub Actions):**
+  Crear un workflow que ejecute los tests (`bats`), `bash -n` y `shellcheck` en cada push y PR. El badge "tests 27/27" ya está en README, pero falta el workflow real que lo respalde.
+
+- [ ] **Integración con Astro:**
+  Investigar si Astro tiene un flujo de trabajo Git común (ej: builds, despliegues) y diseñar un plugin o script que se integre con `git-sidekick` para automatizar esas tareas.
+
+> ℹ️ Estas tareas se definirán con más detalle al inicio de cada sesión.
