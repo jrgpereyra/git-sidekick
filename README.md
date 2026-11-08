@@ -7,7 +7,7 @@
 ![License](https://img.shields.io/badge/License-MIT-blue.svg)
 ![Version](https://img.shields.io/badge/version-0.3.0-orange.svg)
 ![Hecho con](https://img.shields.io/badge/hecho%20con-Bash-4979e0.svg)
-![Tests](https://img.shields.io/badge/tests-27%2F27-brightgreen.svg)
+![Tests](https://img.shields.io/badge/tests-36%2F36-brightgreen.svg)
 
 ---
 
@@ -44,10 +44,19 @@ curl -fsSL https://raw.githubusercontent.com/jrgpereyra/git-sidekick/main/git-si
 - *"Iniciá sesión en dev con la etiqueta carrito"* → arranca una sesión nueva
 - *"Hacé un snapshot de rescate"* → punto de seguridad sin salir del flujo
 - *"Cerrá la sesión con mensaje fix: validación"* → commitea y guarda todo
-- *"Mergeá feature-carrito en main"* → fusiona con protección
+- *"Mergeá feature-carrito en main"* → fusiona con verificación remota, stash seguro y aborto atómico
 - *"¿En qué estado está todo?"* → te lo cuenta sin rodeos
 
 No necesitás memorizar comandos. Hablabas en español y el agente lo traduce a Git.
+
+### 🔒 Merges sin sustos
+
+Antes y durante cada fusión, `git-sidekick`:
+
+- 🔍 **Verifica el remoto**: hace `git fetch`, revisa el upstream y **aborta** si alguna rama está atrasada.
+- 📦 **Protege tus cambios locales**, incluidos los archivos nuevos (`stash -u`), y los restaura al terminar.
+- 🛡️ **Aborta de forma atómica** ante conflictos (`git merge --abort`) y te devuelve a tu rama original.
+- 🧯 **Limpia todo automáticamente** si algo falla o interrumpís con `Ctrl+C` (trap de seguridad).
 
 P.D. 📖 ¿Te quedaste con ganas de más? La documentación completa con todos los comandos, ejemplos y configuraciones avanzadas está en [`DOCS.md`](DOCS.md).
 

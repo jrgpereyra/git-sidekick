@@ -19,6 +19,7 @@
   - [Comandos directos](#comandos-directos)
 - [Flujo de trabajo recomendado](#flujo-de-trabajo-recomendado)
 - [Comandos disponibles](#comandos-disponibles)
+- [Merge protegido: garantías de seguridad](#merge-protegido-garantías-de-seguridad)
 - [Uso con asistentes de IA](#uso-con-asistentes-de-ia)
 - [Ejemplos de terminal](#ejemplos-de-terminal)
 - [Testing](#testing)
@@ -30,6 +31,7 @@
 - 📋 **Menú interactivo** y **comandos directos** (`start`, `close`, `status`, `restore`, `snapshot`, `clean`, …).
 - 📸 **Snapshots con tags de Git** como puntos de control (p. ej. `work/2026-08-11_14-30-login`).
 - 📦 **Stash automático** al cambiar de rama para no perder cambios sin commitear.
+- 🔀 **Merge protegido**: verificación remota (`fetch` + upstream), stash seguro con untracked, aborto atómico y trap de limpieza.
 - 📝 **Bitácora automática** en Markdown (`.git-worklog.md`) que registra cada sesión.
 - ⏪ **Restauración** a puntos anteriores con `git reset --hard` a un snapshot.
 - 🧹 **Limpieza inteligente** de snapshots antiguos (mantiene los recientes y un por semana).
@@ -163,7 +165,7 @@ Personalizá el comportamiento de git-sidekick **por proyecto** creando un archi
 default_branch=main          # rama principal (main / master)
 dev_branch=dev               # rama de desarrollo
 snapshot_prefix=work         # prefijo para tags de snapshot
-auto_stash=true              # ¿stash automático al cambiar de rama?
+auto_stash=true              # ¿stash automático (con untracked) antes de un merge?
 auto_push=false              # ¿subir a la nube al cerrar? (false = seguro)
 confirm_destructive=true     # ¿confirmación doble antes de reset --hard?
 ```
@@ -174,7 +176,7 @@ confirm_destructive=true     # ¿confirmación doble antes de reset --hard?
 |--------|---------|-------------|
 | `default_branch` | `main` | Nombre de la rama principal. |
 | `dev_branch` | `dev` | Nombre de la rama de desarrollo. |
-| `auto_stash` | `true` | Stash automático al cambiar de rama. |
+| `auto_stash` | `true` | Stash automático (con `-u`) antes de un merge; `false` aborta si el árbol está sucio. |
 | `auto_push` | `false` | Push a la nube al cerrar sesión. |
 | `confirm_destructive` | `true` | Confirmación doble antes de `reset --hard`. |
 | `snapshot_prefix` | `work` | Prefijo para los tags de snapshot. |
@@ -217,7 +219,7 @@ Ejecutalo sin argumentos y navegá el menú con números:
 ./git-sidekick.sh
 ```
 
-> **Atajos rápidos en modo interactivo:** `s` iniciar sesión | `c` cerrar sesión | `q` salir; opciones 9/10/11 para merges preconfigurados y uno personalizado.
+> **Atajos rápidos en modo interactivo:** `s` iniciar sesión | `c` cerrar sesión | `q` salir; opciones 7/8 para merges preconfigurados y 9 para uno personalizado.
 
 
 ```
@@ -231,11 +233,11 @@ Ejecutalo sin argumentos y navegá el menú con números:
 4) RESTAURAR punto
 5) SNAPSHOT (rescate)
 6) LIMPIAR snapshots
-7) AYUDA
-8) SALIR                 (atajo: q)
-9) ACTUALIZAR dev con main (main → dev)  [nivel 1]
-10) PUBLICAR dev a main    (dev → main)  [nivel 2]
-11) FUSIONAR personalizado
+7) ACTUALIZAR dev con main (main → dev)  [nivel 1]
+8) PUBLICAR dev a main     (dev → main)  [nivel 2]
+9) FUSIONAR personalizado
+10) AYUDA
+11) SALIR                (atajo: q)
 ------------------------------------------------
 Opción (1-11) [s/c/q]:
 ```
@@ -304,12 +306,41 @@ Trabajás con una **sesión**: cada vez que empezás una tarea, iniciás; cuando
 | `restore`| Lista snapshots y restaura eligiendo uno con `git reset --hard`.      |
 | `snapshot`| Crea un snapshot rápido sin abrir sesión (punto de rescate).          |
 | `clean`  | Borra snapshots antiguos con confirmación previa.                     |
-| `merge <origen> <destino> <nivel>` | Fusiona ramas con protección (1=simple, 2=estricto).                |
+| `merge <origen> <destino> <nivel>` | Fusiona ramas con preflight remoto, stash seguro y aborto atómico (1=simple, 2=estricto). |
 | `help`   | Muestra la ayuda del script.                                            |
 | `--install-alias` | Instala el alias `gk` en ~/.bash_aliases.                      |
 | `info`   | Muestra rama, remote, ahead/behind, último snapshot y bitácora.       |
 | `--dry-run` | Flag: simula cualquier comando sin ejecutarlo (preview seguro).  |
 | (nada)   | Abre el menú interactivo.                                              |
+
+---
+
+## Merge protegido: garantías de seguridad
+
+`merge_protegido` aplica una secuencia de controles antes y durante cada fusión:
+
+1. **Preflight remoto**
+   - Ejecuta `git fetch --all --prune`.
+   - Verifica que origen y destino tengan upstream configurado.
+   - Si no hay red, advierte y pide **confirmación explícita** para continuar.
+   - Si una rama está **detrás de su remoto**, aborta: primero hay que hacer `git pull --ff-only`.
+
+2. **Árbol de trabajo seguro**
+   - Si hay cambios (tracked, staged o untracked), los guarda con `git stash push --include-untracked`.
+   - Registra el SHA del stash y lo restaura al terminar; solo lo elimina si aplicó limpio.
+   - Con `auto_stash=false`, aborta ante un árbol sucio.
+   - Si la restauración conflictúa, **el stash se conserva** para no perder trabajo.
+
+3. **Aborto atómico**
+   - Registra la rama original y vuelve a ella pase lo que pase.
+   - Ante conflicto ejecuta `git merge --abort` y restaura el árbol previo.
+   - Un `trap` en `EXIT/INT/TERM/HUP` repite la limpieza ante `Ctrl+C`, cierre de terminal o fallo inesperado.
+
+4. **Push posterior**
+   - El nivel 2 ofrece subir el destino después del merge.
+   - Si el push falla, el merge local se conserva y se muestran los pasos para reintentar.
+
+Además se valida que origen y destino sean distintos, que no haya otro merge/rebase en curso y que el destino no esté abierto en otra worktree.
 
 ---
 
@@ -337,7 +368,7 @@ Trabajás con una **sesión**: cada vez que empezás una tarea, iniciás; cuando
 | _"Restaurá al último snapshot"_ | `./git-sidekick.sh restore` |
 | _"Cerrá la sesión con mensaje fix: validación del formulario"_ | `./git-sidekick.sh close` → commitea con ese mensaje, crea snapshot de cierre |
 | _"Limpiá snapshots viejos"_ | `./git-sidekick.sh clean` |
-| _"Mergeá feature-login en main con protección estricta"_ | `./git-sidekick.sh merge feature-login main 2` → snapshot de seguridad, confirma doble, mergea y pucha |
+| _"Mergeá feature-login en main con protección estricta"_ | `./git-sidekick.sh merge feature-login main 2` → preflight remoto, snapshot de seguridad, stash seguro, aborto ante conflicto y push |
 | _"¿En qué estado está todo?"_ | `./git-sidekick.sh status` |
 
 ### Ejemplo de sesión asistida
@@ -409,11 +440,12 @@ Ingrese el tag a restaurar (Enter para cancelar): work/2026-08-11_15-02-mi-fix-b
 ## Testing
 
 ```bash
-bats tests/core.bats      # suite completa (20+ tests)
+bats tests/core.bats      # suite completa (36 tests)
 ./git-sidekick.sh --dry-run    # simular antes de un cambio grande
 ```
 
-- Tests en `tests/core.bats`.
+- Tests en `tests/core.bats`: **36/36 passing**.
+- Cubren dry-run, configuración, info, snapshots, workflow `start`/`close` y el merge endurecido (preflight remoto, stash con untracked, conflicto atómico, worktree ocupada y push fallido).
 - `--dry-run` corta toda ejecución antes de prompts → ideal para safe-checks.
 - `.git-sidekick-context` nunca debe commitearse (está en `.gitignore`).
 
