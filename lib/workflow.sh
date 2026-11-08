@@ -780,6 +780,8 @@ start_session() {
 # RETORNA: 0 si cerró, 1 si se cancela/falla.
 # POR QUÉ: registra el cierre en la bitácora (log_work) para trazabilidad.
 # NOTA: `git reset -q HEAD -- "$CONTEXT_FILE"` impide versionar el contexto de sesión.
+# NOTA: el worklog se escribe después del commit principal, por eso se commitea aparte
+#   para no dejar el árbol sucio al finalizar.
 close_session() {
     if simulate "Cerrar sesión: exportar config + commit + snapshot + (push opcional)"; then
         echo -e "${BLUE}   └─ No se commitea ni sube nada.${NC}"
@@ -838,6 +840,14 @@ close_session() {
 
     log_work "$block"
 
+    local worklog_pending=false
+    if [ -n "$(git status --porcelain -- "$WORKLOG_FILE" 2>/dev/null)" ]; then
+        git add "$WORKLOG_FILE" 2>/dev/null
+        if ! git commit -m "docs: registrar cierre de sesión" >/dev/null 2>&1; then
+            worklog_pending=true
+        fi
+    fi
+
     local push_confirm
     read -r -p "¿Subir cambios a la nube? [Enter=sí]: " push_confirm
     if [ -z "$push_confirm" ] || [ "$push_confirm" = "s" ] || [ "$push_confirm" = "S" ] || [ "$push_confirm" = "y" ] || [ "$push_confirm" = "Y" ]; then
@@ -845,6 +855,10 @@ close_session() {
     fi
 
     limpiar_contexto
+    if [ "$worklog_pending" = true ]; then
+        say_error "No pude commitear ${WORKLOG_FILE}. Revisá 'git status'."
+        return 1
+    fi
     say_success "SESIÓN CERRADA. Todo guardado ✓"
     say_tip "Iniciá otra con 's' (opción 1), o restaurá un point con '4'."
 }
