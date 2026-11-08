@@ -53,6 +53,29 @@ teardown() {
   [ "$(git log --merges --oneline 2>/dev/null | wc -l)" -eq 0 ]
 }
 
+@test "menu opción 8 publica dev en main (no dev en dev)" {
+  # Preparar un commit exclusivo de dev
+  git checkout -q -b dev
+  echo "cambio dev" > dev.txt
+  git add dev.txt
+  git commit -q -m "cambio en dev"
+  git checkout -q main
+  # y un commit exclusivo de main → el merge no es fast-forward
+  echo "cambio main" > main.txt
+  git add main.txt
+  git commit -q -m "cambio en main"
+
+  # 8 → confirmar merge → no push → volver a la rama original → salir
+  output=$(printf '8\n\nn\n\n11\n' | "$GKS" 2>&1 || true)
+
+  echo "$output" | grep -q "(dev → main)"
+  echo "$output" | grep -q "Merge dev → main completado"
+  # main debe haber recibido el archivo creado en dev
+  git cat-file -e main:dev.txt
+  # y debe existir un merge commit en main
+  [ "$(git log --merges --oneline main | wc -l)" -ge 1 ]
+}
+
 # ── CONFIG (.git-sidekickrc) ─────────────────────────────────
 
 @test "git-sidekickrc se carga y muestra mensaje" {

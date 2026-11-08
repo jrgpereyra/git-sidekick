@@ -158,7 +158,7 @@ mostrar_menu() {
         echo "5) SNAPSHOT (rescate)"
         echo "6) LIMPIAR snapshots"
         echo "7) ACTUALIZAR ${DEV_BRANCH} con ${DEFAULT_BRANCH} (${DEFAULT_BRANCH} → ${DEV_BRANCH})  [nivel 1]"
-        echo "8) PUBLICAR ${DEV_BRANCH} a ${DEFAULT_BRANCH} (${DEV_BRANCH} → ${DEV_BRANCH})  [nivel 2]"
+        echo "8) PUBLICAR ${DEV_BRANCH} a ${DEFAULT_BRANCH} (${DEV_BRANCH} → ${DEFAULT_BRANCH})  [nivel 2]"
         echo "9) FUSIONAR personalizado"
         echo "10) AYUDA"
         echo "11) SALIR                 (atajo: q)"
@@ -172,7 +172,7 @@ mostrar_menu() {
             5) crear_snapshot ;;
             6) limpiar_snapshots ;;
             7) merge_protegido "${DEFAULT_BRANCH}" "${DEV_BRANCH}" "1" ;;
-            8) merge_protegido "${DEV_BRANCH}" "${DEV_BRANCH}" "2" ;;
+            8) merge_protegido "${DEV_BRANCH}" "${DEFAULT_BRANCH}" "2" ;;
             9)
                 local _ramas=() _i=1 _actual _r _num_o _num_d _niv_m _orig_m _dest_m
                 _actual=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
