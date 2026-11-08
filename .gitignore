@@ -5,3 +5,6 @@
 .git-worklog.md
 # Directorios de respaldo (si los hay)
 backups/
+# Archivos locales / respaldos del proyecto
+Plan.Comentarios.Post.Refactorizacion.md
+git-sidekick.sh.bak

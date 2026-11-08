@@ -22,22 +22,22 @@ fi
 
 # --- Cargar módulos externos (colores y configuración) ---
 # shellcheck source=lib/colors.sh
-source "$(dirname "${BASH_SOURCE[0]}")/lib/colors.sh"
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib/colors.sh"
 # shellcheck source=lib/config.sh
-source "$(dirname "${BASH_SOURCE[0]}")/lib/config.sh"
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib/config.sh"
 
 # shellcheck source=lib/git-helpers.sh
-source "$(dirname "${BASH_SOURCE[0]}")/lib/git-helpers.sh"
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib/git-helpers.sh"
 # shellcheck source=lib/ui.sh
-source "$(dirname "${BASH_SOURCE[0]}")/lib/ui.sh"
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib/ui.sh"
 
 # shellcheck source=lib/workflow.sh
-source "$(dirname "${BASH_SOURCE[0]}")/lib/workflow.sh"
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib/workflow.sh"
 
 # shellcheck source=lib/plugins.sh
-source "$(dirname "${BASH_SOURCE[0]}")/lib/plugins.sh"
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib/plugins.sh"
 # shellcheck source=lib/ddev.sh
-source "$(dirname "${BASH_SOURCE[0]}")/lib/ddev.sh"
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib/ddev.sh"
 
 # NOTA: los módulos se sourcean en orden de dependencia; cada source usa
 #   BASH_SOURCE[0] (path robusto) y `# shellcheck source=` documenta el intento.
@@ -138,7 +138,7 @@ main() {
             close) close_session ;;
             status) mostrar_estado ;;
             restore) restaurar_snapshot ;;
-            snapshot) crear_snapshot ;;
+            snapshot) shift; crear_snapshot "$@" ;;
             clean) limpiar_snapshots ;;
             merge) shift; merge_protegido "$@" ;;
             info) mostrar_info ;;
