@@ -1,10 +1,15 @@
 # Archivos de contexto
 .git-sidekick-context
-.git-sidekickrc        # Configuración por proyecto ( opcional, versionable con git add -f )
-# Archivos de bitácora (opcional, si querés versionarlos)
-.git-worklog.md
+
+# Configuración por proyecto (opcional; versionar con: git add -f .git-sidekickrc)
+.git-sidekickrc
+
 # Directorios de respaldo (si los hay)
 backups/
+
 # Archivos locales / respaldos del proyecto
 Plan.Comentarios.Post.Refactorizacion.md
 git-sidekick.sh.bak
+
+# NOTA: .git-worklog.md NO se ignora; close_session lo commitea como bitácora versionada.
+
