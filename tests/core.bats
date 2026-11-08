@@ -262,3 +262,170 @@ teardown() {
   [ "$(git rev-parse --abbrev-ref HEAD)" = "dev" ]
   rm -rf "$fresh_dir"
 }
+
+# ── MERGE ENDURECIDO ────────────────────────────────────────
+
+@test "merge aborta si el destino está detrás de su remoto" {
+  remote_dir="$(mktemp -d /tmp/bats-remote-XXXXXX)"
+  git init -q --bare "$remote_dir"
+  git remote add origin "$remote_dir"
+  git push -q -u origin main
+
+  git checkout -q -b dev
+  echo "dev" > dev.txt
+  git add dev.txt
+  git commit -q -m "commit dev"
+
+  # Avanzar main en el remoto desde otro clon
+  other_dir="$(mktemp -d /tmp/bats-other-XXXXXX)"
+  git clone -q -b main "$remote_dir" "$other_dir"
+  git -C "$other_dir" config user.email "other@test.com"
+  git -C "$other_dir" config user.name "Other"
+  echo "remoto" > "$other_dir/remoto.txt"
+  git -C "$other_dir" add remoto.txt
+  git -C "$other_dir" commit -q -m "avance remoto"
+  git -C "$other_dir" push -q origin main
+
+  git checkout -q main
+  before=$(git rev-parse main)
+
+  # dev no tiene upstream (Enter para continuar); main está behind → aborta
+  run bash -c "printf '\n' | '$GKS' merge dev main 2"
+
+  [ "$status" -ne 0 ]
+  echo "$output" | grep -q "detrás"
+  [ "$(git rev-parse main)" = "$before" ]
+  [ ! -f dev.txt ]
+
+  rm -rf "$remote_dir" "$other_dir"
+}
+
+@test "merge con árbol sucio guarda y restaura tracked + untracked" {
+  git checkout -q -b dev
+  echo "dev" > dev.txt
+  git add dev.txt
+  git commit -q -m "commit dev"
+  git checkout -q main
+  echo "main" > main.txt
+  git add main.txt
+  git commit -q -m "commit main"
+
+  echo "mod local" >> main.txt
+  echo "nuevo local" > local.txt
+
+  run bash -c "printf '\nn\n\n' | '$GKS' merge dev main 2"
+
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -q "Merge dev → main completado"
+  [ -f local.txt ]
+  grep -q "nuevo local" local.txt
+  grep -q "mod local" main.txt
+  [ -z "$(git stash list)" ]
+}
+
+@test "merge con conflicto: aborta, vuelve a la rama original y restaura stash" {
+  git checkout -q -b dev
+  echo "version dev" > conflicto.txt
+  git add conflicto.txt
+  git commit -q -m "dev conflicto"
+  git checkout -q main
+  echo "version main" > conflicto.txt
+  git add conflicto.txt
+  git commit -q -m "main conflicto"
+
+  echo "local" > local.txt
+
+  run bash -c "printf '\n' | '$GKS' merge dev main 2"
+
+  [ "$status" -ne 0 ]
+  echo "$output" | grep -q "conflict"
+  [ "$(git rev-parse --abbrev-ref HEAD)" = "main" ]
+  [ ! -f .git/MERGE_HEAD ]
+  [ -f local.txt ]
+  grep -q "local" local.txt
+  [ -z "$(git stash list)" ]
+  grep -q "version main" conflicto.txt
+}
+
+@test "merge rechaza origen y destino iguales" {
+  run "$GKS" merge main main 2
+
+  [ "$status" -ne 0 ]
+  echo "$output" | grep -q "misma rama"
+}
+
+@test "merge con AUTO_STASH=false aborta ante árbol sucio sin tocar nada" {
+  git checkout -q -b dev
+  echo "dev" > dev.txt
+  git add dev.txt
+  git commit -q -m "commit dev"
+  git checkout -q main
+
+  echo "AUTO_STASH=false" > .git-sidekickrc
+  echo "local" > local.txt
+
+  run bash -c "printf '\n' | '$GKS' merge dev main 2"
+
+  [ "$status" -ne 0 ]
+  echo "$output" | grep -q "AUTO_STASH=false"
+  [ ! -f dev.txt ]
+  [ -z "$(git stash list)" ]
+}
+
+@test "merge aborta si el destino está abierto en otra worktree" {
+  git checkout -q -b dev
+  wt_base="$(mktemp -d /tmp/bats-wt-XXXXXX)"
+  wt="$wt_base/main-wt"
+  git worktree add -q "$wt" main
+
+  run bash -c "printf '\n\nn\n\n' | '$GKS' merge dev main 2"
+
+  [ "$status" -ne 0 ]
+  echo "$output" | grep -q "otra worktree"
+
+  git worktree remove --force "$wt" 2>/dev/null || true
+  rm -rf "$wt_base"
+}
+
+@test "merge conserva el merge local si el push falla" {
+  git checkout -q -b dev
+  echo "dev" > dev.txt
+  git add dev.txt
+  git commit -q -m "commit dev"
+  git checkout -q main
+  echo "main" > main.txt
+  git add main.txt
+  git commit -q -m "commit main"
+
+  git remote add origin "$test_dir/remoto-inexistente.git"
+
+  # fetch falla → continuar; confirmar; push (Enter, falla); volver
+  run bash -c "printf '\n\n\n\n' | '$GKS' merge dev main 2"
+
+  [ "$status" -ne 0 ]
+  echo "$output" | grep -q "quedó guardado localmente"
+  [ "$(git log --merges --oneline main | wc -l)" -ge 1 ]
+  git cat-file -e main:dev.txt
+}
+
+@test "merge advierte si una rama no tiene upstream y permite continuar" {
+  remote_dir="$(mktemp -d /tmp/bats-remote-XXXXXX)"
+  git init -q --bare "$remote_dir"
+  git remote add origin "$remote_dir"
+  git push -q -u origin main
+
+  git checkout -q -b dev
+  echo "dev" > dev.txt
+  git add dev.txt
+  git commit -q -m "commit dev"
+  git checkout -q main
+
+  # dev sin upstream → Enter para continuar; confirmar; no push; volver
+  run bash -c "printf '\n\nn\n\n' | '$GKS' merge dev main 2"
+
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -q "no tiene seguimiento remoto"
+  echo "$output" | grep -q "Merge dev → main completado"
+
+  rm -rf "$remote_dir"
+}

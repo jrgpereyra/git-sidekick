@@ -126,6 +126,42 @@ tiene_cambios() {
     fi
 }
 
+# --- Detección amplia de árbol sucio (incluye untracked) ---
+# --- FUNCIÓN: arbol_sucio ---
+# PROPÓSITO: detectar cambios staged, unstaged o archivos no rastreados.
+# PARÁMETROS: (ninguno).
+# RETORNA: 0 si hay algo que `git stash -u` movería, 1 si el árbol está limpio.
+# POR QUÉ: tiene_cambios ignora untracked; el merge necesita ver todo para decidir
+#   si debe stashear antes de cambiar de rama.
+# NOTA: --porcelain respeta .gitignore y da salida estable entre versiones.
+arbol_sucio() {
+    [ -n "$(git status --porcelain 2>/dev/null)" ]
+}
+
+# --- Detección de rama ocupada por otra worktree ---
+# --- FUNCIÓN: rama_en_otra_worktree ---
+# PROPÓSITO: saber si una rama está checked-out en una worktree distinta a la actual.
+# PARÁMETROS: $1 = nombre de rama.
+# RETORNA: 0 si está en otra worktree, 1 si no.
+# POR QUÉ: git no permite hacer checkout de una rama ya usada por otra worktree.
+# NOTA: parsea `git worktree list --porcelain` (bloques worktree/branch).
+rama_en_otra_worktree() {
+    local rama="$1" toplevel path branch _wt_line
+    toplevel=$(git rev-parse --show-toplevel 2>/dev/null)
+    while IFS= read -r _wt_line; do
+        case "$_wt_line" in
+            "worktree "*) path="${_wt_line#worktree }" ;;
+            "branch refs/heads/"*)
+                branch="${_wt_line#branch refs/heads/}"
+                if [ "$branch" = "$rama" ] && [ "$path" != "$toplevel" ]; then
+                    return 0
+                fi
+                ;;
+        esac
+    done < <(git worktree list --porcelain 2>/dev/null)
+    return 1
+}
+
 # --- Último commit y tag (para info/status) ---
 # --- FUNCIÓN: ultimo_commit ---
 # PROPÓSITO: devolver el abreviatado del último commit (o "sin commits").

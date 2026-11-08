@@ -900,29 +900,254 @@ cambiar_rama() {
         return 1
     fi
 }
+# --- Estado del merge protegido (usado por el trap de seguridad) ---
+_MERGE_ACTIVE=false
+_MERGE_ORIG=""
+_MERGE_STASH_SHA=""
+_MERGE_STASHED=false
+_MERGE_OLD_EXIT=""
+
+# --- FUNCIÓN: _merge_preflight_remoto ---
+# PROPÓSITO: verificar sincronización con el remoto antes de fusionar.
+# PARÁMETROS: $1=origen, $2=destino.
+# RETORNA: 0 si se puede continuar, 1 si hay que abortar.
+# POR QUÉ: fusionar/pushear sobre ramas atrasadas genera desfases y pushes rechazados.
+# NOTA: si no hay red, se advierte y se pide confirmación explícita (política acordada).
+_merge_preflight_remoto() {
+    local origen="$1" destino="$2"
+    local remote fetch_err up ahead behind rama resp
+
+    remote=$(git remote get-url origin 2>/dev/null)
+    if [ -z "$remote" ]; then
+        say_warn "No hay remoto 'origin'; omito la verificación de sincronización."
+        return 0
+    fi
+
+    if ! fetch_err=$(git fetch --all --prune 2>&1); then
+        say_warn "No pude contactar el remoto (¿sin conexión?)."
+        say_info "Detalle: $fetch_err"
+        read -r -p "¿Continuar sin verificar el estado remoto? [Enter=sí/n]: " resp
+        case "$resp" in
+            n|N|no|No)
+                say_info "Merge cancelado."
+                return 1
+                ;;
+        esac
+        return 0
+    fi
+
+    for rama in "$origen" "$destino"; do
+        up=$(git rev-parse --abbrev-ref --symbolic-full-name "${rama}@{upstream}" 2>/dev/null)
+        if [ -z "$up" ]; then
+            say_warn "La rama '$rama' no tiene seguimiento remoto configurado."
+            say_tip "Configuralo con: git push -u origin $rama"
+            read -r -p "¿Continuar igualmente con '$rama'? [Enter=sí/n]: " resp
+            case "$resp" in
+                n|N|no|No)
+                    say_info "Merge cancelado."
+                    return 1
+                    ;;
+            esac
+            continue
+        fi
+
+        if ! read -r ahead behind < <(git rev-list --left-right --count "${rama}...${up}" 2>/dev/null); then
+            say_warn "No pude comparar '$rama' con '$up'; omito esa verificación."
+            continue
+        fi
+
+        if [ "${behind:-0}" -gt 0 ] 2>/dev/null; then
+            say_error "La rama '$rama' está $behind commit(s) detrás de '$up'."
+            say_tip "Actualizala antes de fusionar: git pull --ff-only"
+            return 1
+        fi
+
+        if [ "${ahead:-0}" -gt 0 ] 2>/dev/null; then
+            say_info "La rama '$rama' tiene $ahead commit(s) locales sin subir."
+        fi
+    done
+
+    return 0
+}
+
+# --- FUNCIÓN: _merge_stash_push ---
+# PROPÓSITO: guardar el árbol de trabajo (incluye untracked) antes del merge.
+# PARÁMETROS: $1 = mensaje del stash.
+# RETORNA: 0 e imprime el SHA del stash por stdout; 1 si falla.
+# POR QUÉ: necesitamos el SHA para restaurar exactamente lo guardado, aunque
+#   aparezcan otros stashes después.
+_merge_stash_push() {
+    local mensaje="$1"
+    if ! git stash push --include-untracked -m "$mensaje" >/dev/null 2>&1; then
+        return 1
+    fi
+    git rev-parse --verify --quiet refs/stash
+}
+
+# --- FUNCIÓN: _merge_stash_restore ---
+# PROPÓSITO: restaurar un stash identificado por SHA y eliminarlo si aplicó bien.
+# PARÁMETROS: $1 = SHA del stash.
+# RETORNA: 0 si restauró (o ya no existía), 1 si no pudo aplicar.
+# POR QUÉ: si la restauración conflictúa NUNCA se descarta el stash (no se pierde trabajo).
+# NOTA: intenta `apply --index` para conservar staging; si falla, aplica sin índice.
+_merge_stash_restore() {
+    local sha="$1" ref apply_err
+
+    [ -z "$sha" ] && return 0
+
+    ref=$(git stash list --format='%gd %H' 2>/dev/null | awk -v s="$sha" '$2 == s { print $1; exit }')
+    if [ -z "$ref" ]; then
+        return 0
+    fi
+
+    if apply_err=$(git stash apply --index "$ref" 2>&1); then
+        :
+    elif apply_err=$(git stash apply "$ref" 2>&1); then
+        say_warn "Restauré tus cambios, pero no el estado del staging."
+    else
+        say_error "No pude restaurar automáticamente tus cambios locales."
+        say_tip "Siguen guardados en '$ref'. Recuperalos con: git stash list"
+        say_tip "Detalle: $apply_err"
+        return 1
+    fi
+
+    git stash drop "$ref" >/dev/null 2>&1 || true
+    return 0
+}
+
+# --- FUNCIÓN: _merge_abortar ---
+# PROPÓSITO: cancelar un merge en curso y devolver el árbol al estado previo.
+# PARÁMETROS: (ninguno).
+# RETORNA: 0 si había un merge en curso y se abortó, 1 si no había nada que abortar.
+# POR QUÉ: `git merge --abort` es la forma atómica de deshacer un merge conflictuado.
+_merge_abortar() {
+    if git rev-parse -q --verify MERGE_HEAD >/dev/null 2>&1; then
+        git merge --abort >/dev/null 2>&1 || true
+        return 0
+    fi
+    return 1
+}
+
+# --- FUNCIÓN: _merge_cleanup ---
+# PROPÓSITO: deshacer todo (merge, checkout, stash) ante fallo o interrupción.
+# PARÁMETROS: (ninguno).
+# RETORNA: 0 (siempre; es idempotente).
+# POR QUÉ: se usa desde el trap EXIT/INT/TERM/HUP y desde los caminos de error.
+# NOTA: si no puede volver a la rama original, NO restaura el stash para no
+#   mezclar cambios en la rama equivocada.
+_merge_cleanup() {
+    [ "$_MERGE_ACTIVE" = "true" ] || return 0
+    _MERGE_ACTIVE=false
+
+    if _merge_abortar; then
+        say_warn "Merge abortado: el árbol volvió al estado previo."
+    fi
+
+    local actual pudo_volver=true
+    actual=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+    if [ -n "$_MERGE_ORIG" ] && [ "$actual" != "$_MERGE_ORIG" ]; then
+        if git checkout "$_MERGE_ORIG" >/dev/null 2>&1; then
+            say_info "Volviste a la rama '$_MERGE_ORIG'."
+        else
+            pudo_volver=false
+            say_warn "No pude volver automáticamente a '$_MERGE_ORIG'."
+        fi
+    fi
+
+    if [ "$_MERGE_STASHED" = "true" ] && [ -n "$_MERGE_STASH_SHA" ]; then
+        if [ "$pudo_volver" = true ]; then
+            _MERGE_STASHED=false
+            _merge_stash_restore "$_MERGE_STASH_SHA" || true
+        else
+            say_warn "Tus cambios siguen en el stash para evitar mezclarlos en otra rama."
+        fi
+    fi
+
+    return 0
+}
+
+# --- FUNCIÓN: _merge_traps_on / _merge_traps_off ---
+# PROPÓSITO: instalar y restaurar el trap de seguridad del merge.
+# PARÁMETROS: (ninguno).
+# RETORNA: 0.
+# POR QUÉ: ante Ctrl+C, cierre de terminal o fallo inesperado, garantiza limpieza.
+# NOTA: guarda el trap EXIT previo (los tests sourcean los módulos) y lo restaura.
+_merge_traps_on() {
+    _MERGE_OLD_EXIT=$(trap -p EXIT)
+    trap '_merge_cleanup' EXIT
+    trap '_merge_cleanup; exit 130' INT
+    trap '_merge_cleanup; exit 143' TERM HUP
+}
+
+_merge_traps_off() {
+    trap - EXIT INT TERM HUP
+    if [ -n "$_MERGE_OLD_EXIT" ]; then
+        eval "$_MERGE_OLD_EXIT"
+    fi
+    _MERGE_OLD_EXIT=""
+}
+
+# --- FUNCIÓN: _merge_checkout ---
+# PROPÓSITO: cambiar de rama sin stashear (el stash lo gestiona merge_protegido).
+# PARÁMETROS: $1 = rama destino.
+# RETORNA: 0 si cambió, 1 si falla (con error amigable).
+_merge_checkout() {
+    local rama="$1" err
+    if err=$(git checkout "$rama" 2>&1); then
+        return 0
+    fi
+    say_git_error "$err"
+    return 1
+}
+
 # --- FUNCIÓN: merge_protegido ---
-# PROPÓSITO: fusionar origen→destino con protección (snapshot previo + confirmaciones).
+# PROPÓSITO: fusionar origen→destino con preflight remoto, stash seguro y aborto atómico.
 # PARÁMETROS: $1=origen, $2=destino, $3=nivel (1 simple / 2 estricto).
-# RETORNA: 0 si ok, 1 si falla/cancela.
-# POR QUÉ: nivel 2 crea un tag guardia antes del merge (rollback seguro).
-# NOTA: nivel 1 = merge directo; nivel 2 = snapshot+merge+push+rollback a rama original.
+# RETORNA: 0 si ok, 1 si falla/cancela o si algún paso posterior requiere atención.
+# POR QUÉ: nivel 2 crea un tag guardia antes del merge; los dos niveles restauran
+#   el árbol de trabajo y abortan ante conflicto.
+# NOTA: el stash se restaura SIEMPRE (éxito, fallo o interrupción) salvo conflicto
+#   al aplicarlo, en cuyo caso se conserva para no perder trabajo.
 merge_protegido() {
     local origen="$1"
     local destino="$2"
     local nivel="${3:-}"
-    local confirmacion
+    local confirmacion rama_original stash_sha merge_out push_out git_dir
+    local push_failed=false restore_failed=false
 
     if [ "$nivel" != "1" ] && [ "$nivel" != "2" ]; then
-        echo -e "${RED}❌ Nivel de protección inválido. Use 1 (simple) o 2 (estricto).${NC}"
+        say_error "Nivel de protección inválido. Use 1 (simple) o 2 (estricto)."
         return 1
     fi
 
-    local rama_original
-    rama_original=$(git rev-parse --abbrev-ref HEAD)
+    rama_original=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
 
     if simulate "Merge protegido: $origen → $destino (nivel $nivel) — nada se modifica"; then
         echo -e "${BLUE}   └─ No se hace merge ni stash.${NC}"
         return 0
+    fi
+
+    if ! check_git; then
+        return 1
+    fi
+
+    if [ "$origen" = "$destino" ]; then
+        say_error "Origen y destino son la misma rama ('$destino')."
+        say_tip "Elegí dos ramas distintas. Ej: gk merge dev main 2"
+        return 1
+    fi
+
+    if git rev-parse -q --verify MERGE_HEAD >/dev/null 2>&1; then
+        say_error "Ya hay un merge en curso."
+        say_tip "Terminalo con 'git commit' o cancelalo con 'git merge --abort'."
+        return 1
+    fi
+
+    git_dir=$(git rev-parse --git-dir 2>/dev/null)
+    if [ -d "$git_dir/rebase-merge" ] || [ -d "$git_dir/rebase-apply" ]; then
+        say_error "Hay un rebase en curso."
+        say_tip "Terminalo con 'git rebase --continue' o 'git rebase --abort'."
+        return 1
     fi
 
     if ! git show-ref --verify --quiet "refs/heads/$origen"; then
@@ -938,6 +1163,19 @@ merge_protegido() {
         return 1
     fi
 
+    if rama_en_otra_worktree "$destino"; then
+        say_error "La rama '$destino' está abierta en otra worktree."
+        say_tip "Cerrá esa worktree o elegí otra rama destino."
+        echo -e "${CYAN}📋 Worktrees activas:${NC}"
+        git worktree list 2>/dev/null
+        return 1
+    fi
+
+    if ! _merge_preflight_remoto "$origen" "$destino"; then
+        say_info "No se modificó nada."
+        return 1
+    fi
+
     # --- Resumen visual + confirmación única (aplica al menú y al CLI) ---
     echo -e "${YELLOW}⚠️ Vas a fusionar '$origen' → '$destino' con protección nivel $nivel.${NC}"
     if [ "$nivel" = "2" ]; then
@@ -947,16 +1185,54 @@ merge_protegido() {
     git log --oneline "${destino}..${origen}" | head -30
     read -r -p "¿Confirmar? [Enter=sí]: " confirmacion
     if [ "$confirmacion" = "n" ] || [ "$confirmacion" = "N" ]; then
-        echo -e "${YELLOW}Operación cancelada. Volviendo a '$rama_original'.${NC}"
-        git checkout "$rama_original" 2>/dev/null
+        say_info "Operación cancelada. Volviendo a '$rama_original'."
         return 1
     fi
 
-    # Asegurarse de estar en la rama destino (usar cambiar_rama)
-    if [ "$(git rev-parse --abbrev-ref HEAD)" != "$destino" ]; then
-        if ! cambiar_rama "$destino"; then
+    # --- Fase mutante: a partir de acá el trap garantiza la limpieza ---
+    _MERGE_ORIG="$rama_original"
+    _MERGE_STASH_SHA=""
+    _MERGE_STASHED=false
+    _MERGE_ACTIVE=true
+    _merge_traps_on
+
+    if arbol_sucio; then
+        case "$AUTO_STASH" in
+            false|FALSE|False)
+                say_error "Hay cambios sin commitear y AUTO_STASH=false."
+                say_tip "Commiteá o descartá los cambios, o poné AUTO_STASH=true en .git-sidekickrc."
+                _MERGE_ACTIVE=false
+                _merge_traps_off
+                return 1
+                ;;
+        esac
+
+        say_warn "Hay cambios sin commitear; los guardaré en un stash temporal."
+        if ! stash_sha=$(_merge_stash_push "Auto-stash pre-merge ${origen}→${destino}"); then
+            say_error "No pude guardar los cambios en stash."
+            say_tip "Probá manualmente: git stash push -u -m 'pre-merge'"
+            _MERGE_ACTIVE=false
+            _merge_traps_off
             return 1
         fi
+        if [ -z "$stash_sha" ]; then
+            say_error "No pude identificar el stash de seguridad."
+            _MERGE_ACTIVE=false
+            _merge_traps_off
+            return 1
+        fi
+        _MERGE_STASH_SHA="$stash_sha"
+        _MERGE_STASHED=true
+        say_success "Cambios guardados en stash temporal ✓"
+    fi
+
+    if [ "$(git rev-parse --abbrev-ref HEAD)" != "$destino" ]; then
+        if ! _merge_checkout "$destino"; then
+            _merge_cleanup
+            _merge_traps_off
+            return 1
+        fi
+        say_success "Cambiado a rama '$destino' ✓"
     fi
 
     # Snapshot de seguridad (nivel 2), después de confirmar y antes del merge
@@ -967,17 +1243,21 @@ merge_protegido() {
         if [ -n "$tag_guardia" ]; then
             echo -e "${YELLOW}🛡️ Snapshot de seguridad creado: ${tag_guardia}${NC}"
         else
-            echo -e "${RED}❌ No se pudo crear el snapshot de seguridad.${NC}"
+            say_error "No se pudo crear el snapshot de seguridad."
+            _merge_cleanup
+            _merge_traps_off
             return 1
         fi
     fi
 
-    local merge_out
     # NOTA: --no-edit usa el mensaje de merge por defecto y no abre editor (no interactivo).
     if merge_out=$(git merge "$origen" --no-edit 2>&1); then
         say_success "Merge completado sin conflictos ✓"
     else
         say_git_error "$merge_out"
+        _merge_cleanup
+        _merge_traps_off
+        say_tip "El merge quedó abortado y volviste a '$rama_original'."
         return 1
     fi
 
@@ -985,18 +1265,44 @@ merge_protegido() {
         local conf
         read -r -p "¿Querés subir los cambios de '$destino' a la nube? [Enter=sí]: " conf
         if [ -z "$conf" ] || [ "$conf" = "s" ] || [ "$conf" = "S" ] || [ "$conf" = "y" ] || [ "$conf" = "Y" ]; then
-            if git push origin "$destino"; then
+            if push_out=$(git push origin "$destino" 2>&1); then
                 echo -e "${GREEN}✅ '$destino' subido a la nube.${NC}"
             else
-                echo -e "${RED}❌ Error al subir '$destino' a la nube.${NC}"
+                push_failed=true
+                say_error "El merge quedó guardado localmente, pero no pude subir '$destino'."
+                say_tip "Cuando recuperes conexión ejecutá: git push origin $destino"
+                say_tip "Detalle: $push_out"
             fi
         fi
     fi
 
-    local conf2
+    local conf2 volver_ok=true
     read -r -p "¿Volver a la rama original '$rama_original'? [Enter=sí]: " conf2
     if [ -z "$conf2" ] || [ "$conf2" = "s" ] || [ "$conf2" = "S" ] || [ "$conf2" = "y" ] || [ "$conf2" = "Y" ]; then
-        cambiar_rama "$rama_original" 2>/dev/null
+        if [ "$rama_original" != "$destino" ]; then
+            _merge_checkout "$rama_original" || volver_ok=false
+        fi
+    fi
+
+    if [ "$_MERGE_STASHED" = "true" ]; then
+        if [ "$volver_ok" = false ]; then
+            say_warn "No restauré tus cambios para no mezclarlos en la rama equivocada."
+            say_tip "Siguen guardados en el stash: git stash list"
+            restore_failed=true
+        elif _merge_stash_restore "$_MERGE_STASH_SHA"; then
+            say_success "Tus cambios locales fueron restaurados ✓"
+        else
+            restore_failed=true
+        fi
+        _MERGE_STASHED=false
+    fi
+
+    _MERGE_ACTIVE=false
+    _merge_traps_off
+
+    if [ "$push_failed" = true ] || [ "$restore_failed" = true ]; then
+        say_warn "El merge se completó, pero hubo pasos que requieren tu atención."
+        return 1
     fi
 
     say_success "Merge $origen → $destino completado ✓"
