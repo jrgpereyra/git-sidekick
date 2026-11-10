@@ -18,7 +18,7 @@
 # shellcheck disable=SC2034 # COMMIT_INICIAL se asigna aquí y se lee en _mostrar_resumen_init (lib/ui.sh)
 inicializar_repo() {
     local resp rama_default plataforma nombre_repo
-    local visibilidad tipo cli_cmd cli_info remote_url platform_info extra
+    local visibilidad tipo cli_cmd cli_info remote_url platform_info extra push_out
 
     # Preguntar si inicializar
     read -r -p "¿Querés inicializar uno ahora? [Enter=sí]: " resp
@@ -34,29 +34,29 @@ inicializar_repo() {
     fi
 
     # Inicializar repo
-    if ! git init 2>/dev/null; then
+    if ! git init -q 2>/dev/null; then
         echo -e "${RED}❌ Error al inicializar el repositorio.${NC}"
         return 1
     fi
-    git branch -M "$rama_default" 2>/dev/null
+    git branch -M -q "$rama_default" 2>/dev/null
     COMMIT_INICIAL="❌"
-    if git commit --allow-empty -m "Initial commit" 2>/dev/null; then
+    if git commit --allow-empty -m "Initial commit" >/dev/null 2>&1; then
         COMMIT_INICIAL="✅"
     fi
     say_success "Repositorio Git inicializado ✓"
 
-    # --- Crear rama de desarrollo opcional (UX-2: que exista para merges 9/10) ---
+    # --- Crear rama de desarrollo opcional (UX-2: que exista para los merges protegidos) ---
     local dev_resp
     read -r -p "¿Crear también la rama de desarrollo '$DEV_BRANCH'? [Enter=sí]: " dev_resp
     if [ -z "$dev_resp" ] || [ "$dev_resp" = "s" ] || [ "$dev_resp" = "S" ] || [ "$dev_resp" = "y" ] || [ "$dev_resp" = "Y" ]; then
         if git show-ref --verify --quiet "refs/heads/$DEV_BRANCH" 2>/dev/null; then
             say_info "La rama '$DEV_BRANCH' ya existe."
-        elif git checkout -b "$DEV_BRANCH" "$rama_default" 2>/dev/null; then
+        elif git checkout -q -b "$DEV_BRANCH" "$rama_default" 2>/dev/null; then
             say_success "Rama '$DEV_BRANCH' creada. Ya estás en ella ✓"
         else
             say_warn "No se pudo crear la rama '$DEV_BRANCH'."
         fi
-        git checkout "$DEV_BRANCH" 2>/dev/null
+        git checkout -q "$DEV_BRANCH" 2>/dev/null
     fi
     echo ""
 
@@ -187,7 +187,7 @@ inicializar_repo() {
                 github)
                     # Asegurar que hay al menos un commit para --push
                     if ! git log --quiet 2>/dev/null; then
-                        git commit --allow-empty -m "Initial commit" 2>/dev/null
+                        git commit --allow-empty -m "Initial commit" >/dev/null 2>&1
                     fi
                     if gh repo create "$nombre_repo" $tipo --source=. --remote=origin --push; then
                         remote_url=$(git remote get-url origin 2>/dev/null)
@@ -238,16 +238,17 @@ inicializar_repo() {
             if [ -z "$connectar" ] || [ "$connectar" = "s" ] || [ "$connectar" = "S" ] || [ "$connectar" = "y" ] || [ "$connectar" = "Y" ]; then
                 read -r -p "URL del remote: " remote_url
                 if [ -n "$remote_url" ]; then
-                    git remote add origin "$remote_url"
-                    git branch -M "$rama_default"
+                    git remote add origin "$remote_url" >/dev/null 2>&1
+                    git branch -M -q "$rama_default"
                     # Asegurar que hay al menos un commit para push
                     if ! git log --quiet 2>/dev/null; then
-                        git commit --allow-empty -m "Initial commit" 2>/dev/null
+                        git commit --allow-empty -m "Initial commit" >/dev/null 2>&1
                     fi
-                    if git push -u origin "$rama_default"; then
+                    if push_out=$(git push -u origin "$rama_default" 2>&1); then
                         echo -e "${GREEN}✅ Repositorio conectado a $remote_url${NC}"
                     else
                         echo -e "${RED}❌ Error al pushear.${NC}"
+                        say_tip "Detalle: $push_out"
                     fi
                 fi
             else
@@ -262,16 +263,17 @@ inicializar_repo() {
             _mostrar_resumen_init "$rama_default" "" "$platform_info" "" "Sin URL"
             return 0
         fi
-        git remote add origin "$remote_url"
-        git branch -M "$rama_default"
+        git remote add origin "$remote_url" >/dev/null 2>&1
+        git branch -M -q "$rama_default"
         # Asegurar que hay al menos un commit para push
         if ! git log --quiet 2>/dev/null; then
-            git commit --allow-empty -m "Initial commit" 2>/dev/null
+            git commit --allow-empty -m "Initial commit" >/dev/null 2>&1
         fi
-        if git push -u origin "$rama_default"; then
+        if push_out=$(git push -u origin "$rama_default" 2>&1); then
             echo -e "${GREEN}✅ Repositorio conectado a $remote_url${NC}"
         else
             echo -e "${RED}❌ Error al pushear.${NC}"
+            say_tip "Detalle: $push_out"
         fi
     fi
 
@@ -296,17 +298,18 @@ stash_auto() {
         return 0
     fi
 
-    local respuesta
+    local respuesta stash_err
     read -r -p "¿Querés hacer stash de los cambios actuales? [Enter=sí]: " respuesta
 
     case "$respuesta" in
         ""|s|S|y|Y)
-            if git stash push -m "Auto-stash antes de cambiar de rama"; then
+            if stash_err=$(git stash push -q -m "Auto-stash antes de cambiar de rama" 2>&1); then
                 say_success "Cambios guardados en stash ✓"
                 return 0
             else
                 say_error "No pude hacer stash."
                 say_tip "Probá manualmente: git stash push -m 'antes-de-cambiar'"
+                say_tip "Detalle: $stash_err"
                 return 1
             fi
             ;;
@@ -395,7 +398,7 @@ mostrar_info() {
 # PROPÓSITO: mostrar estado rápido: rama actual, ahead/behind y archivos modificados.
 # PARÁMETROS: (ninguno).
 # RETORNA: 0 (siempre).
-# POR QUÉ: es el "status" ligero del menú (opción 2).
+# POR QUÉ: es el "status" ligero del menú (Extras → opción 1).
 # NOTA: el tip final orienta al usuario al siguiente paso del workflow (s/5).
 mostrar_estado() {
     git fetch --all --prune > /dev/null 2>&1
@@ -423,7 +426,7 @@ mostrar_estado() {
 
     echo ""
     git status --short
-    say_tip "Iniciá sesión con 's' (opción 1) o creá un snapshot de rescate con '5'."
+    say_tip "Iniciá sesión con 's' (opción 1) o creá un snapshot desde EXTRAS ('e', opción 4)."
 }
 
 # --- Funciones de bitácora ---
@@ -520,9 +523,9 @@ crear_snapshot() {
         echo -e "${BLUE}   └─ Tag que crearía: ${nombre}${NC}"
         return 0
     fi
-    if git tag "$nombre" -m "Snapshot: ${etiqueta:-sin-etiqueta}"; then
+    if git tag "$nombre" -m "Snapshot: ${etiqueta:-sin-etiqueta}" >/dev/null 2>&1; then
         say_success "Snapshot creado: $nombre ✓"
-        say_tip "Restaurá con 'gk restore' (opción 4) si lo necesitás."
+        say_tip "Restaurá con 'gk restore' o desde EXTRAS ('e') si lo necesitás."
         return 0
     else
         say_error "No pude crear el tag '$nombre'."
@@ -534,7 +537,7 @@ crear_snapshot() {
 # PROPÓSITO: listar snapshots work/* ordenados por fecha (más reciente primero).
 # PARÁMETROS: (ninguno; lee `git tag`).
 # RETORNA: 0 (imprime "No hay snapshots" si la lista vacía).
-# POR QUÉ: permite al usuario elegir qué punto restaurar (opción 4).
+# POR QUÉ: permite al usuario elegir qué punto restaurar (Extras → opción 2).
 # NOTA: while + <<< (here-string) evita subshell y no pierde la lista.
 listar_snapshots() {
     local tags
@@ -593,7 +596,7 @@ restaurar_snapshot() {
         return 1
     fi
     echo -e "${YELLOW}⚠️ Se perderán todos los cambios no guardados.${NC}"
-    if git reset --hard "$tag"; then
+    if git reset --hard -q "$tag"; then
         say_success "Restaurado a $tag ✓"
         say_tip "Volvé a iniciar sesión con 's' (opción 1), o revisá con 'gk info'."
         return 0
@@ -665,7 +668,7 @@ limpiar_snapshots() {
         return 1
     fi
     for i in "${a_borrar[@]}"; do
-        git tag -d "$i"
+        git tag -d "$i" >/dev/null 2>&1
         echo "Eliminado: $i"
     done
     say_success "Limpieza completada ✓"
@@ -730,7 +733,7 @@ start_session() {
             echo -e "${RED}❌ Debés especificar un nombre.${NC}"
             return 1
         fi
-        if ! git checkout -b "$rama" 2>/dev/null; then
+        if ! git checkout -q -b "$rama" 2>/dev/null; then
             echo -e "${RED}❌ Error al crear la rama '$rama'.${NC}"
             return 1
         fi
@@ -757,7 +760,7 @@ start_session() {
         fecha_tag=$(date +%F_%H-%M)
         git add . 2>/dev/null
         git reset -q HEAD -- "$CONTEXT_FILE" 2>/dev/null || true
-        git commit -m "Checkpoint inicio - ${etiqueta:-sin-etiqueta} - ${fecha_tag}" 2>/dev/null
+        git commit -m "Checkpoint inicio - ${etiqueta:-sin-etiqueta} - ${fecha_tag}" >/dev/null 2>&1
     fi
 
     local snapshot_out snapshot_tag
@@ -768,7 +771,7 @@ start_session() {
         guardar_contexto "$rama" "inicio" "$snapshot_tag"
         say_success "SESIÓN INICIADA en [${rama}] ✓"
         say_info "Tag de inicio: ${snapshot_tag}"
-        say_tip "Editá, agregá y commiteá. Cerrás con 'c' (opción 3)."
+        say_tip "Editá, agregá y commiteá. Cerrás con 'c' (opción 2)."
     else
         echo -e "${RED}❌ Error al crear el snapshot de inicio.${NC}"
         return 1
@@ -811,7 +814,7 @@ close_session() {
     git add . 2>/dev/null
     git reset -q HEAD -- "$CONTEXT_FILE" 2>/dev/null || true
     if tiene_cambios; then
-        git commit -m "$mensaje" 2>/dev/null
+        git commit -m "$mensaje" >/dev/null 2>&1
     else
         echo "No hay cambios para commitear."
     fi
@@ -851,7 +854,7 @@ close_session() {
     local push_confirm
     read -r -p "¿Subir cambios a la nube? [Enter=sí]: " push_confirm
     if [ -z "$push_confirm" ] || [ "$push_confirm" = "s" ] || [ "$push_confirm" = "S" ] || [ "$push_confirm" = "y" ] || [ "$push_confirm" = "Y" ]; then
-        git push origin "$rama" 2>/dev/null
+        git push -q origin "$rama" 2>/dev/null
     fi
 
     limpiar_contexto
@@ -860,7 +863,7 @@ close_session() {
         return 1
     fi
     say_success "SESIÓN CERRADA. Todo guardado ✓"
-    say_tip "Iniciá otra con 's' (opción 1), o restaurá un point con '4'."
+    say_tip "Iniciá otra con 's' (opción 1), o restaurá un punto desde EXTRAS ('e')."
 }
 # --- FUNCIÓN: cambiar_rama ---
 # PROPÓSITO: cambiar de rama, stasheando cambios previos si los hay (con confirmación).
@@ -891,9 +894,9 @@ cambiar_rama() {
     fi
 
     local err_out
-    if err_out=$(git checkout "$target_branch" 2>&1); then
+    if err_out=$(git checkout -q "$target_branch" 2>&1); then
         say_success "Cambiado a rama '$target_branch' ✓"
-        say_tip "Iniciá sesión con 's' (opción 1) o creá un snapshot con '5'."
+        say_tip "Iniciá sesión con 's' (opción 1) o creá un snapshot desde EXTRAS ('e')."
         return 0
     else
         say_git_error "$err_out"
@@ -1046,7 +1049,7 @@ _merge_cleanup() {
     local actual pudo_volver=true
     actual=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
     if [ -n "$_MERGE_ORIG" ] && [ "$actual" != "$_MERGE_ORIG" ]; then
-        if git checkout "$_MERGE_ORIG" >/dev/null 2>&1; then
+        if git checkout -q "$_MERGE_ORIG" >/dev/null 2>&1; then
             say_info "Volviste a la rama '$_MERGE_ORIG'."
         else
             pudo_volver=false
@@ -1093,7 +1096,7 @@ _merge_traps_off() {
 # RETORNA: 0 si cambió, 1 si falla (con error amigable).
 _merge_checkout() {
     local rama="$1" err
-    if err=$(git checkout "$rama" 2>&1); then
+    if err=$(git checkout -q "$rama" 2>&1); then
         return 0
     fi
     say_git_error "$err"
@@ -1265,7 +1268,7 @@ merge_protegido() {
         local conf
         read -r -p "¿Querés subir los cambios de '$destino' a la nube? [Enter=sí]: " conf
         if [ -z "$conf" ] || [ "$conf" = "s" ] || [ "$conf" = "S" ] || [ "$conf" = "y" ] || [ "$conf" = "Y" ]; then
-            if push_out=$(git push origin "$destino" 2>&1); then
+            if push_out=$(git push -q origin "$destino" 2>&1); then
                 echo -e "${GREEN}✅ '$destino' subido a la nube.${NC}"
             else
                 push_failed=true
@@ -1306,6 +1309,6 @@ merge_protegido() {
     fi
 
     say_success "Merge $origen → $destino completado ✓"
-    say_tip "Verificá con 'gk info', o seguí trabajando / cerrá con 'c' (opción 3)."
+    say_tip "Verificá con 'gk info', o seguí trabajando / cerrá con 'c' (opción 2)."
     return 0
 }

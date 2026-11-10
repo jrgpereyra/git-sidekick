@@ -36,14 +36,14 @@ listar_ramas_disponibles
 ```
 
 ### Menus y labels coherentes
-- El menú interactivo usa `1) INICIAR sesión (s)` etc.
+- Menú interactivo de 5 opciones: 1) INICIAR sesión (s), 2) CERRAR sesión (c), 3) PUBLICAR dev a main, 4) EXTRAS / HERRAMIENTAS (e), 5) SALIR (q).
 - Los mensajes de onboarding/hints deben referirse a los **mismos labels**
-  (`INICIAR sesión`, `CERRAR sesión`, `SNAPSHOT`), nunca a `gk start` como si
+  (`INICIAR sesión`, `CERRAR sesión`, `EXTRAS`), nunca a `gk start` como si
   fuera obvio. El novato ve números y atajos.
 
 ### Micro-hints después de cada comando
 Cada comando que produce éxito **debe** incluir un `say_tip` con el siguiente
-paso natural. Ej: `start` → "Cerrás con 'c' (opción 3)".
+paso natural. Ej: `start` → "Cerrás con 'c' (opción 2)".
 
 ## 🧪 Testing
 ```bash

@@ -219,27 +219,40 @@ Ejecutalo sin argumentos y navegá el menú con números:
 ./git-sidekick.sh
 ```
 
-> **Atajos rápidos en modo interactivo:** `s` iniciar sesión | `c` cerrar sesión | `q` salir; opciones 7/8 para merges preconfigurados y 9 para uno personalizado.
-
+> **Atajos rápidos en modo interactivo:** `s` iniciar sesión | `c` cerrar sesión | `e` extras | `q` salir; el menú principal tiene 5 opciones (`1-5`) y las herramientas viven en Extras.
 
 ```
 ------------------------------------------------
-🎮 git-sidekick v0.3.0
+🎮 git-sidekick v0.4.0
 📍 Rama actual: → main
 ------------------------------------------------
 1) INICIAR sesión        (atajo: s)
-2) VER ESTADO
-3) CERRAR sesión         (atajo: c)
-4) RESTAURAR punto
-5) SNAPSHOT (rescate)
-6) LIMPIAR snapshots
-7) ACTUALIZAR dev con main (main → dev)  [nivel 1]
-8) PUBLICAR dev a main     (dev → main)  [nivel 2]
-9) FUSIONAR personalizado
-10) AYUDA
-11) SALIR                (atajo: q)
+2) CERRAR sesión         (atajo: c)
+3) PUBLICAR dev a main     (dev → main)  [nivel 2]
+4) EXTRAS / HERRAMIENTAS (atajo: e)
+5) SALIR                 (atajo: q)
 ------------------------------------------------
-Opción (1-11) [s/c/q]:
+Opción (1-5) [s/c/e/q]:
+```
+
+### Submenú Extras / Herramientas
+
+La opción `4) EXTRAS / HERRAMIENTAS` agrupa las herramientas secundarias:
+
+```
+------------------------------------------------
+🛠️  EXTRAS / HERRAMIENTAS
+------------------------------------------------
+1) VER ESTADO
+2) RESTAURAR punto
+3) SNAPSHOT (rescate)
+4) LIMPIAR snapshots
+5) ACTUALIZAR dev con main (main → dev)  [nivel 1]
+6) FUSIONAR personalizado
+7) AYUDA
+0) VOLVER al menú principal
+------------------------------------------------
+Opción (0-7): [o "0) VOLVER al menú principal"]
 ```
 
 ### Comandos directos

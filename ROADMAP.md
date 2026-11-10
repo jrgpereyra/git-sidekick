@@ -122,13 +122,14 @@ La configuración es estática dentro del script (prefijos de tags, nombres de r
 - **Estado:** ✅ Implementado en v0.3.0.
 
 ### 4.6 Menú reordenado (UX-friendly)
-- **Problema:** `AYUDA` y `SALIR` estaban en medio del menú; las opciones de merge estaban antes que las de rescate.
-- **Solución:** Reordenar por frecuencia de uso y agrupación lógica:
-  1-3) Flujo diario (INICIAR, ESTADO, CERRAR)
-  4-6) Rescate (RESTAURAR, SNAPSHOT, LIMPIAR)
-  7-9) Merge/Publish (ACTUALIZAR, PUBLICAR, FUSIONAR)
-  10-11) Meta (AYUDA, SALIR)
-- **Estado:** ✅ Implementado en v0.3.0.
+- **Problema:** `AYUDA` y `SALIR` estaban en medio del menú; las opciones de merge estaban antes que las de rescate; las herramientas secundarias estaban mezcladas con el flujo principal.
+- **Solución:** Rediseño final del menú a 5 opciones + submenú Extras:
+  1) INICIAR sesión (s)
+  2) CERRAR sesión (c)
+  3) PUBLICAR dev a main (dev → main) [nivel 2]
+  4) EXTRAS / HERRAMIENTAS (e) → 1) VER ESTADO, 2) RESTAURAR, 3) SNAPSHOT, 4) LIMPIAR, 5) ACTUALIZAR dev con main, 6) FUSIONAR personalizado, 7) AYUDA, 0) VOLVER
+  5) SALIR (q)
+- **Estado:** ✅ Implementado en v0.4.0.
 
 ### 4.7 Detección de repo padre (evita mezclar carpetas)
 - **Problema:** Si una subcarpeta está dentro de un repo Git padre, Git usa el repo padre mezclando archivos.

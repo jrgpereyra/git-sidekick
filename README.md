@@ -5,9 +5,9 @@
 ---
 
 ![License](https://img.shields.io/badge/License-MIT-blue.svg)
-![Version](https://img.shields.io/badge/version-0.3.0-orange.svg)
+![Version](https://img.shields.io/badge/version-0.4.0-orange.svg)
 ![Hecho con](https://img.shields.io/badge/hecho%20con-Bash-4979e0.svg)
-![Tests](https://img.shields.io/badge/tests-36%2F36-brightgreen.svg)
+![Tests](https://img.shields.io/badge/tests-38%2F38-brightgreen.svg)
 
 ---
 

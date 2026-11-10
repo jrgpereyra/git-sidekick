@@ -12,6 +12,31 @@
 # --- Flag de simulación ---
 DRY_RUN=false
 
+# --- Helpers de pantalla y pausa (solo TTY) ---
+# --- FUNCIÓN: clear_screen ---
+# PROPÓSITO: limpiar la terminal en las transiciones de menú sin romper pipes/tests.
+# PARÁMETROS: (ninguno).
+# RETORNA: 0 (siempre).
+# POR QUÉ: `clear` sólo tiene sentido en una terminal; en tests la salida se captura.
+# NOTA: SIDEKICK_NO_CLEAR=1 desactiva la limpieza (útil para depurar).
+clear_screen() {
+    [ -t 1 ] || return 0
+    [ "${SIDEKICK_NO_CLEAR:-0}" = "1" ] && return 0
+    clear 2>/dev/null || printf '\033[2J\033[H'
+}
+
+# --- FUNCIÓN: pausa ---
+# PROPÓSITO: pausar para que el usuario lea el resultado antes de limpiar pantalla.
+# PARÁMETROS: (ninguno; lee una línea de stdin).
+# RETORNA: 0 (siempre).
+# POR QUÉ: con `clear` en cada transición, sin pausa el resultado se perdería.
+# NOTA: sólo pausa en TTY; con stdin por pipe (tests) retorna sin consumir líneas.
+pausa() {
+    [ -t 0 ] || return 0
+    [ "${SIDEKICK_NO_PAUSE:-0}" = "1" ] && return 0
+    read -r -p "⏎ Enter para continuar..." _
+}
+
 # --- Simulación / Dry-run ---
 # --- FUNCIÓN: simulate ---
 # PROPÓSITO: en modo --dry-run, anunciar y retornar true (SIMULAR) efectos secundarios.
@@ -43,9 +68,11 @@ mostrar_onboarding() {
     printf '├─%s┤\n' "$sep"
     echo "│ "
     echo "│  Desde el menú interactivo:"
-    echo "│    1) INICIAR sesión  (atajo: s)"
-    echo "│    3) CERRAR sesión  (atajo: c) → commitear + tag"
-    echo "│    5) SNAPSHOT (rescate)"
+    echo "│    1) INICIAR sesión   (atajo: s)"
+    echo "│    2) CERRAR sesión    (atajo: c) → commitear + tag"
+    echo "│    3) PUBLICAR ${DEV_BRANCH} a ${DEFAULT_BRANCH}"
+    echo "│    4) EXTRAS  (atajo: e) → estado/snapshot/restaurar"
+    echo "│    5) SALIR            (atajo: q)"
     echo "│ "
     echo "│  Desde la terminal:"
     echo "│    gk start  ·  gk close  ·  gk info"
@@ -122,24 +149,29 @@ mostrar_ayuda() {
     echo "Todos los comandos aceptan --dry-run para simular sin ejecutar."
     echo "Ejemplo:  gk start --dry-run"
     echo ""
-    echo "Atajes: s=start, c=close, q=salir (modo interactivo)"
-    echo "Sin argumentos: modo interactivo"
+    echo "Menú interactivo (sin argumentos):"
+    echo "  1) INICIAR sesión   (s)"
+    echo "  2) CERRAR sesión    (c)"
+    echo "  3) PUBLICAR ${DEV_BRANCH} a ${DEFAULT_BRANCH}"
+    echo "  4) EXTRAS           (e) → estado, snapshot, restore, clean, merges, ayuda"
+    echo "  5) SALIR            (q)"
     echo "========================================="
 }
 
 # --- Menú principal (loop persistente) ---
 # --- FUNCIÓN: mostrar_menu ---
-# PROPÓSITO: mostrar el menú interactivo (1-11) y ejecutar la opción elegida en loop.
+# PROPÓSITO: mostrar el menú interactivo (1-5) y ejecutar la opción elegida en loop.
 # PARÁMETROS: (ninguno; interacción vía read -r -p).
-# RETORNA: 0 al salir (opción 11/q); caso contrario el código de la sub-acción elegida.
+# RETORNA: 0 al salir (opción 5/q); caso contrario el código de la sub-acción elegida.
 # POR QUÉ: loop persistente → el usuario navega sin salir y volver a invocar.
 # NOTA: read -r evita mangling de backslashes; -p deja el prompt en la misma línea.
 mostrar_menu() {
     while true; do
         local _rama_actual opt
+        clear_screen
         _rama_actual=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
         echo "------------------------------------------------"
-        echo -e "${BLUE}🎮 git-sidekick v0.3.0${NC}"
+        echo -e "${BLUE}🎮 git-sidekick v0.4.0${NC}"
         if [ -n "$_rama_actual" ]; then
             echo -e "${YELLOW}📍 Rama actual: → $_rama_actual${NC}"
         fi
@@ -152,50 +184,143 @@ mostrar_menu() {
         fi
         echo "------------------------------------------------"
         echo "1) INICIAR sesión        (atajo: s)"
-        echo "2) VER ESTADO"
-        echo "3) CERRAR sesión         (atajo: c)"
-        echo "4) RESTAURAR punto"
-        echo "5) SNAPSHOT (rescate)"
-        echo "6) LIMPIAR snapshots"
-        echo "7) ACTUALIZAR ${DEV_BRANCH} con ${DEFAULT_BRANCH} (${DEFAULT_BRANCH} → ${DEV_BRANCH})  [nivel 1]"
-        echo "8) PUBLICAR ${DEV_BRANCH} a ${DEFAULT_BRANCH} (${DEV_BRANCH} → ${DEFAULT_BRANCH})  [nivel 2]"
-        echo "9) FUSIONAR personalizado"
-        echo "10) AYUDA"
-        echo "11) SALIR                 (atajo: q)"
+        echo "2) CERRAR sesión         (atajo: c)"
+        echo "3) PUBLICAR ${DEV_BRANCH} a ${DEFAULT_BRANCH} (${DEV_BRANCH} → ${DEFAULT_BRANCH})  [nivel 2]"
+        echo "4) EXTRAS / HERRAMIENTAS (atajo: e)"
+        echo "5) SALIR                 (atajo: q)"
         echo "------------------------------------------------"
-        read -r -p "Opción (1-11) [s/c/q]: " opt
+        read -r -p "Opción (1-5) [s/c/e/q]: " opt || break
         case $opt in
-            1|[sS]) start_session ;;
-            2) mostrar_estado ;;
-            3|[cC]) close_session ;;
-            4) restaurar_snapshot ;;
-            5) crear_snapshot ;;
-            6) limpiar_snapshots ;;
-            7) merge_protegido "${DEFAULT_BRANCH}" "${DEV_BRANCH}" "1" ;;
-            8) merge_protegido "${DEV_BRANCH}" "${DEFAULT_BRANCH}" "2" ;;
-            9)
-                local _ramas=() _i=1 _actual _r _num_o _num_d _niv_m _orig_m _dest_m
-                _actual=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
-                echo -e "${BLUE}📋 Ramas disponibles:${NC}"
-                while IFS= read -r _r; do
-                    [ -z "$_r" ] && continue
-                    if [ "$_r" = "$_actual" ]; then
-                        echo "  $_i) $_r *"
-                    else
-                        echo "  $_i) $_r"
-                    fi
-                    _ramas+=("$_r"); _i=$((_i+1))
-                done < <(git for-each-ref --format='%(refname:short)' refs/heads/)
-                read -r -p "Número de rama origen: " _num_o
-                read -r -p "Número de rama destino: " _num_d
-                read -r -p "Nivel de protección (1/2): " _niv_m
-                _orig_m="${_ramas[$((_num_o-1))]}"
-                _dest_m="${_ramas[$((_num_d-1))]}"
-                merge_protegido "$_orig_m" "$_dest_m" "$_niv_m"
+            1|[sS])
+                clear_screen
+                start_session
+                pausa
                 ;;
-            10) mostrar_ayuda ;;
-            11|[qQ])
+            2|[cC])
+                clear_screen
+                close_session
+                pausa
+                ;;
+            3)
+                clear_screen
+                merge_protegido "${DEV_BRANCH}" "${DEFAULT_BRANCH}" "2"
+                pausa
+                ;;
+            4|[eE])
+                mostrar_menu_extras
+                ;;
+            5|[qQ])
                 echo "👋 Saliendo."
+                break
+                ;;
+            *) echo -e "${RED}❌ Opción no válida${NC}" ;;
+        esac
+    done
+}
+
+# --- FUNCIÓN: fusionar_personalizado ---
+# PROPÓSITO: elegir origen, destino y nivel por número y lanzar merge_protegido.
+# PARÁMETROS: (ninguno; interacción vía read -r -p).
+# RETORNA: 0 si delega el merge; 1 si la selección es inválida.
+# POR QUÉ: aísla la lógica del menú y permite reutilizarla sin duplicar código.
+# NOTA: los números elegidos se validan antes de indexar el array de ramas.
+fusionar_personalizado() {
+    local _ramas=() _i=1 _actual _r _num_o _num_d _niv_m _orig_m _dest_m
+    _actual=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
+    echo -e "${BLUE}📋 Ramas disponibles:${NC}"
+    while IFS= read -r _r; do
+        [ -z "$_r" ] && continue
+        if [ "$_r" = "$_actual" ]; then
+            echo "  $_i) $_r *"
+        else
+            echo "  $_i) $_r"
+        fi
+        _ramas+=("$_r"); _i=$((_i+1))
+    done < <(git for-each-ref --format='%(refname:short)' refs/heads/)
+
+    read -r -p "Número de rama origen: " _num_o
+    read -r -p "Número de rama destino: " _num_d
+    read -r -p "Nivel de protección (1/2): " _niv_m
+
+    if ! [[ "$_num_o" =~ ^[0-9]+$ ]] || [ "$_num_o" -lt 1 ] || [ "$_num_o" -gt "${#_ramas[@]}" ]; then
+        say_error "Número de rama origen inválido."
+        return 1
+    fi
+    if ! [[ "$_num_d" =~ ^[0-9]+$ ]] || [ "$_num_d" -lt 1 ] || [ "$_num_d" -gt "${#_ramas[@]}" ]; then
+        say_error "Número de rama destino inválido."
+        return 1
+    fi
+    if [ "$_niv_m" != "1" ] && [ "$_niv_m" != "2" ]; then
+        say_error "Nivel de protección inválido. Usá 1 (simple) o 2 (estricto)."
+        return 1
+    fi
+
+    _orig_m="${_ramas[$((_num_o-1))]}"
+    _dest_m="${_ramas[$((_num_d-1))]}"
+    merge_protegido "$_orig_m" "$_dest_m" "$_niv_m"
+}
+
+# --- Menú secundario de herramientas ---
+# --- FUNCIÓN: mostrar_menu_extras ---
+# PROPÓSITO: agrupar las herramientas secundarias en un submenú con retorno.
+# PARÁMETROS: (ninguno; interacción vía read -r -p).
+# RETORNA: 0 al volver al menú principal (opción 0).
+# POR QUÉ: mantiene el menú principal en 5 opciones sin perder funcionalidad.
+# NOTA: conserva los labels con DEV_BRANCH/DEFAULT_BRANCH para config y tests.
+mostrar_menu_extras() {
+    while true; do
+        local opt
+        clear_screen
+        echo "------------------------------------------------"
+        echo -e "${BLUE}🛠️  EXTRAS / HERRAMIENTAS${NC}"
+        echo "------------------------------------------------"
+        echo "1) VER ESTADO"
+        echo "2) RESTAURAR punto"
+        echo "3) SNAPSHOT (rescate)"
+        echo "4) LIMPIAR snapshots"
+        echo "5) ACTUALIZAR ${DEV_BRANCH} con ${DEFAULT_BRANCH} (${DEFAULT_BRANCH} → ${DEV_BRANCH})  [nivel 1]"
+        echo "6) FUSIONAR personalizado"
+        echo "7) AYUDA"
+        echo "0) VOLVER al menú principal"
+        echo "------------------------------------------------"
+        read -r -p "Opción (0-7): " opt || break
+        case $opt in
+            1)
+                clear_screen
+                mostrar_estado
+                pausa
+                ;;
+            2)
+                clear_screen
+                restaurar_snapshot
+                pausa
+                ;;
+            3)
+                clear_screen
+                crear_snapshot
+                pausa
+                ;;
+            4)
+                clear_screen
+                limpiar_snapshots
+                pausa
+                ;;
+            5)
+                clear_screen
+                merge_protegido "${DEFAULT_BRANCH}" "${DEV_BRANCH}" "1"
+                pausa
+                ;;
+            6)
+                clear_screen
+                fusionar_personalizado
+                pausa
+                ;;
+            7)
+                clear_screen
+                mostrar_ayuda
+                pausa
+                ;;
+            0)
                 break
                 ;;
             *) echo -e "${RED}❌ Opción no válida${NC}" ;;

@@ -53,7 +53,7 @@ teardown() {
   [ "$(git log --merges --oneline 2>/dev/null | wc -l)" -eq 0 ]
 }
 
-@test "menu opción 8 publica dev en main (no dev en dev)" {
+@test "menu opción 3 publica dev en main (no dev en dev)" {
   # Preparar un commit exclusivo de dev
   git checkout -q -b dev
   echo "cambio dev" > dev.txt
@@ -66,7 +66,7 @@ teardown() {
   git commit -q -m "cambio en main"
 
   # 8 → confirmar merge → no push → volver a la rama original → salir
-  output=$(printf '8\n\nn\n\n11\n' | "$GKS" 2>&1 || true)
+  output=$(printf '3\n\nn\n\n5\n' | "$GKS" 2>&1 || true)
 
   echo "$output" | grep -q "(dev → main)"
   echo "$output" | grep -q "Merge dev → main completado"
@@ -88,20 +88,20 @@ teardown() {
 @test "git-sidekickrc: dev_branch=develop reflejado en el menu" {
   echo "dev_branch=develop" > .git-sidekickrc
   git branch develop 2>/dev/null
-  run bash -c "printf '11\n' | $GKS"
+  run bash -c "printf '4\n0\n5\n' | $GKS"
   echo "$output" | grep -q "ACTUALIZAR develop"
   echo "$output" | grep -q "PUBLICAR develop"
 }
 
 @test "git-sidekickrc: uppercase DEV_BRANCH también funciona" {
   echo "DEV_BRANCH=staging" > .git-sidekickrc
-  run bash -c "printf '11\n' | $GKS"
+  run bash -c "printf '4\n0\n5\n' | $GKS"
   echo "$output" | grep -q "ACTUALIZAR staging"
 }
 
 @test "git-sidekickrc: espacios y comment inline se ignoran" {
   printf '  dev_branch = qa # rama de pruebas  \n' > .git-sidekickrc
-  run bash -c "printf '11\n' | $GKS"
+  run bash -c "printf '4\n0\n5\n' | $GKS"
   echo "$output" | grep -q "ACTUALIZAR qa"
   ! grep -q "qa # rama" <<< "$output"
 }
@@ -170,14 +170,14 @@ teardown() {
 @test "gk init crea rama dev + onboarding coherente al menu" {
   local fresh_dir init_output
   fresh_dir="$(mktemp -d /tmp/bats-fresh-XXXXXX)"
-  init_output=$( (cd "$fresh_dir" && printf '\n\n\n1\n11\n' | "$GKS" 2>&1) || true )
+  init_output=$( (cd "$fresh_dir" && printf '\n\n\n1\n5\n' | "$GKS" 2>&1) || true )
   # La rama dev debe existir
   run git --git-dir="$fresh_dir/.git" show-ref --verify --quiet refs/heads/dev
   [ $status -eq 0 ]
   # Onboarding con labels EXACTOS del menú interactivo
   echo "$init_output" | grep -q "Primeros pasos"
   echo "$init_output" | grep -q "1) INICIAR sesión"
-  echo "$init_output" | grep -q "3) CERRAR sesión"
+  echo "$init_output" | grep -q "2) CERRAR sesión"
   echo "$init_output" | grep -q "gk --dry-run"
   rm -rf "$fresh_dir"
 }
@@ -226,21 +226,21 @@ teardown() {
 }
 
 @test "start_session incluye micro-hint de guidance" {
-  output=$(printf '1\n1\ntest\n11\n' | "$GKS" 2>&1 || true)
+  output=$(printf '1\n1\ntest\n5\n' | "$GKS" 2>&1 || true)
   echo "$output" | grep -q "SESIÓN INICIADA"
   echo "$output" | grep -q "💡"
-  echo "$output" | grep -q "opción 3"
+  echo "$output" | grep -q "opción 2"
 }
 
 @test "start_session: Enter defaultea a dev (marca reco" {
   git branch dev
-  output=$(printf '1\n\n\n11\n' | "$GKS" 2>&1 || true)
+  output=$(printf '1\n\n\n5\n' | "$GKS" 2>&1 || true)
   echo "$output" | grep -q "🔹"
   echo "$output" | grep -q "SESIÓN INICIADA en \[dev\]"
 }
 
 @test "start_session: sin dev, Enter defaultea al primer branch" {
-  output=$(printf '1\n\n\n11\n' | "$GKS" 2>&1 || true)
+  output=$(printf '1\n\n\n5\n' | "$GKS" 2>&1 || true)
   ! echo "$output" | grep -q "🔹"
   echo "$output" | grep -q "SESIÓN INICIADA en \[main\]"
 }
@@ -248,7 +248,7 @@ teardown() {
 @test "init: check_git no duplica el mensaje con echo previo" {
   local fresh_dir init_output
   fresh_dir="$(mktemp -d /tmp/bats-fresh-XXXXXX)"
-  init_output=$( (cd "$fresh_dir" && printf '\n\n\n1\n11\n' | "$GKS" 2>&1) || true )
+  init_output=$( (cd "$fresh_dir" && printf '\n\n\n1\n5\n' | "$GKS" 2>&1) || true )
   ! echo "$init_output" | grep -q "❌ No encontré un repositorio Git"
   [ -d "$fresh_dir/.git" ]
   rm -rf "$fresh_dir"
@@ -257,7 +257,7 @@ teardown() {
 @test "init: se queda en la rama dev despues de crearla" {
   local fresh_dir
   fresh_dir="$(mktemp -d /tmp/bats-fresh-XXXXXX)"
-  (cd "$fresh_dir" && printf '\n\n\n1\n11\n' | "$GKS" >/dev/null 2>&1 || true)
+  (cd "$fresh_dir" && printf '\n\n\n1\n5\n' | "$GKS" >/dev/null 2>&1 || true)
   cd "$fresh_dir"
   [ "$(git rev-parse --abbrev-ref HEAD)" = "dev" ]
   rm -rf "$fresh_dir"
@@ -428,4 +428,21 @@ teardown() {
   echo "$output" | grep -q "Merge dev → main completado"
 
   rm -rf "$remote_dir"
+}
+
+@test "menú principal muestra las 5 opciones refactorizadas" {
+  output=$(printf '5\n' | "$GKS" 2>&1 || true)
+  echo "$output" | grep -q "1) INICIAR sesión"
+  echo "$output" | grep -q "2) CERRAR sesión"
+  echo "$output" | grep -q "3) PUBLICAR dev a main"
+  echo "$output" | grep -q "4) EXTRAS / HERRAMIENTAS"
+  echo "$output" | grep -q "5) SALIR"
+  ! echo "$output" | grep -q "Opción (1-11)"
+}
+
+@test "submenú Extras abre con 4 y vuelve al menú principal con 0" {
+  output=$(printf '4\n0\n5\n' | "$GKS" 2>&1 || true)
+  echo "$output" | grep -q "EXTRAS / HERRAMIENTAS"
+  echo "$output" | grep -q "ACTUALIZAR dev con main"
+  echo "$output" | grep -q "SALIR"
 }
