@@ -441,6 +441,10 @@ Cuando termines, elegí "2) CERRAR sesión" para guardar tus cambios. Si querés
 
 > 💡 Si necesitás ver los códigos originales de Git (` M`, `??`), usá `SIDEKICK_STATUS_RAW=1 ./git-sidekick.sh status`.
 
+#### Salida conversacional por defecto (v0.4.0)
+
+Desde v0.4.0, `status` muestra el estado en lenguaje natural: explica la rama, la relación con el servidor, qué pasó con cada archivo y cuál es el siguiente paso recomendado. La variable `SIDEKICK_STATUS_RAW=1` queda como mecanismo de escape para recuperar la salida cruda de Git cuando necesites los códigos originales.
+
 ### Restaurar un snapshot
 
 ```bash
@@ -458,11 +462,11 @@ Ingrese el tag a restaurar (Enter para cancelar): work/2026-08-11_15-02-mi-fix-b
 ## Testing
 
 ```bash
-bats tests/core.bats      # suite completa (36 tests)
+bats tests/core.bats      # suite completa (47 tests)
 ./git-sidekick.sh --dry-run    # simular antes de un cambio grande
 ```
 
-- Tests en `tests/core.bats`: **36/36 passing**.
+- Tests en `tests/core.bats`: **47/47 passing**.
 - Cubren dry-run, configuración, info, snapshots, workflow `start`/`close` y el merge endurecido (preflight remoto, stash con untracked, conflicto atómico, worktree ocupada y push fallido).
 - `--dry-run` corta toda ejecución antes de prompts → ideal para safe-checks.
 - `.git-sidekick-context` nunca debe commitearse (está en `.gitignore`).
