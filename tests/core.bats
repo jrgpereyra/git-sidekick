@@ -446,3 +446,118 @@ teardown() {
   echo "$output" | grep -q "ACTUALIZAR dev con main"
   echo "$output" | grep -q "SALIR"
 }
+
+# ── STATUS CONVERSACIONAL ───────────────────────────────────
+
+@test "status muestra la estructura conversacional completa" {
+  run "$GKS" status
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -Fq "📍 Estás trabajando en la rama:"
+  echo "$output" | grep -Fq "[main]"
+  echo "$output" | grep -q "ℹ️"
+  echo "$output" | grep -Fq "📋 Archivos detectados con cambios:"
+  echo "$output" | grep -Fq "💡 Recomendación:"
+}
+
+@test "status no muestra códigos ni comandos crudos de git" {
+  printf 'base\n' > seguimiento.txt
+  git add seguimiento.txt
+  git commit -q -m "base"
+  printf 'cambio\n' > seguimiento.txt
+  printf 'nuevo\n' > nuevo.txt
+
+  run "$GKS" status
+  [ "$status" -eq 0 ]
+  ! echo "$output" | grep -Fq "??"
+  ! echo "$output" | grep -Fq "[ M]"
+  ! echo "$output" | grep -Fq "git add"
+  ! echo "$output" | grep -Fq "git commit"
+}
+
+@test "status traduce modificados, nuevos y eliminados" {
+  printf 'base\n' > modificado.txt
+  printf 'base\n' > eliminado.txt
+  git add modificado.txt eliminado.txt
+  git commit -q -m "base"
+  printf 'cambio\n' > modificado.txt
+  rm eliminado.txt
+  printf 'nuevo\n' > nuevo.txt
+
+  run "$GKS" status
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -Fq "modificado.txt (Modificado — tenés cambios sin guardar)"
+  echo "$output" | grep -Fq "nuevo.txt (Nuevo — archivo recién creado)"
+  echo "$output" | grep -Fq "eliminado.txt (Eliminado — archivo borrado)"
+}
+
+@test "status traduce archivos en conflicto" {
+  printf 'base\n' > conflicto.txt
+  git add conflicto.txt
+  git commit -q -m "base"
+  git checkout -q -b otra
+  printf 'otra\n' > conflicto.txt
+  git commit -qam "otra"
+  git checkout -q main
+  printf 'main\n' > conflicto.txt
+  git commit -qam "main"
+  git merge otra >/dev/null 2>&1 || true
+
+  run "$GKS" status
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -Fq "conflicto.txt (Conflicto — requiere resolución)"
+  echo "$output" | grep -Fq "Abrí cada archivo marcado como conflicto"
+}
+
+@test "SIDEKICK_STATUS_RAW=1 muestra el status --short original" {
+  printf 'base\n' > rastreado.txt
+  git add rastreado.txt
+  git commit -q -m "base"
+  printf 'cambio\n' > rastreado.txt
+  printf 'nuevo\n' > nuevo.txt
+
+  run env SIDEKICK_STATUS_RAW=1 "$GKS" status
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -Fq " M rastreado.txt"
+  echo "$output" | grep -Fq "?? nuevo.txt"
+  ! echo "$output" | grep -Fq "(Nuevo — archivo recién creado)"
+  echo "$output" | grep -Fq "💡 Recomendación:"
+}
+
+@test "status sin remoto explica que la rama es solo local" {
+  run "$GKS" status
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -Fq "Esta rama solo existe en tu computadora (no hay servidor conectado)."
+}
+
+@test "status con remoto al día reporta rama sincronizada" {
+  local remote_dir
+  remote_dir=$(mktemp -d /tmp/bats-remote-XXXXXX)
+  git init --bare -q "$remote_dir"
+  git remote add origin "$remote_dir"
+  git push -q -u origin main
+
+  run "$GKS" status
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -Fq "Tu rama está sincronizada con el servidor."
+
+  rm -rf "$remote_dir"
+}
+
+@test "status conserva rutas con espacios y acentos" {
+  printf 'contenido\n' > "informe año.txt"
+
+  run "$GKS" status
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -Fq "informe año.txt (Nuevo — archivo recién creado)"
+}
+
+@test "status muestra el nombre viejo y el nuevo en renombrados" {
+  printf 'contenido\n' > "nombre viejo.txt"
+  git add "nombre viejo.txt"
+  git commit -q -m "base"
+  git mv "nombre viejo.txt" "nombre nuevo.txt"
+
+  run "$GKS" status
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -Fq "nombre nuevo.txt (Renombrado — antes se llamaba 'nombre viejo.txt')"
+}
