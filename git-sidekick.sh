@@ -7,7 +7,7 @@
 # =============================================================================
 
 # Flujo: entry point de git-sidekick. Valida git, sourcea módulos lib/* y despacha a main().
-#   Orden de sourceo: colors → config → git-helpers → ui → workflow → plugins → ddev.
+#   Orden de sourceo: colors → config → status → git-helpers → ui → workflow → plugins → ddev.
 # (mantener la validación temprana de git ANTES de sourcear — falla rápido)
 # --- Validación temprana: git es un requisito duro ---
 if ! command -v git >/dev/null 2>&1; then
@@ -25,6 +25,8 @@ fi
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib/colors.sh"
 # shellcheck source=lib/config.sh
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib/config.sh"
+# shellcheck source=lib/status.sh
+source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib/status.sh"
 
 # shellcheck source=lib/git-helpers.sh
 source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib/git-helpers.sh"

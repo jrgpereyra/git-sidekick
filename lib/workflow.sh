@@ -2,7 +2,7 @@
 # =============================================================================
 # lib/workflow.sh - Funciones de lógica de negocio (workflows)
 # Extraído de git-sidekick.sh para modularización (ROADMAP v2.0, Sesión 3)
-# Requiere: lib/colors.sh, lib/config.sh, lib/git-helpers.sh, lib/ui.sh
+# Requiere: lib/colors.sh, lib/config.sh, lib/status.sh, lib/git-helpers.sh, lib/ui.sh
 # =============================================================================
 # Flujo: lógica de negocio. inicializar_repo; gestión de sesiones
 # (start_session/close_session/cambiar_rama); snapshots (crear/listar/restaurar/
@@ -349,16 +349,7 @@ mostrar_info() {
 
     local rama
     rama=$(git rev-parse --abbrev-ref HEAD)
-    if git rev-parse "${rama}@{upstream}" >/dev/null 2>&1; then
-        local behind ahead
-        behind=$(git rev-list --count HEAD.."${rama}@{upstream}" 2>/dev/null)
-        ahead=$(git rev-list --count "${rama}@{upstream}"..HEAD 2>/dev/null)
-        echo "   📤 Ahead:      ${ahead} commit(s) locales sin subir"
-        echo "   📥 Behind:     ${behind} commit(s) remotos para descargar (git pull)"
-    else
-        echo "   📤 Ahead:      Sin seguimiento remoto"
-        echo "   📥 Behind:     Sin seguimiento remoto"
-    fi
+    echo "   📡 Estado:     $(describir_estado_remoto "$rama")"
 
     local ult_tag
     ult_tag=$(ultimo_tag)
@@ -377,12 +368,7 @@ mostrar_info() {
     fi
 
     echo ""
-    git status --short 2>/dev/null | head -15
-    local total_archivos
-    total_archivos=$(git status --short 2>/dev/null | wc -l)
-    if [ "$total_archivos" -gt 15 ]; then
-        echo "... y $((total_archivos - 15)) archivo(s) más"
-    fi
+    renderizar_archivos_git 15
 
     echo ""
     echo -e "${CYAN}💡 Tips:${NC}"
@@ -399,34 +385,10 @@ mostrar_info() {
 # PARÁMETROS: (ninguno).
 # RETORNA: 0 (siempre).
 # POR QUÉ: es el "status" ligero del menú (Extras → opción 1).
-# NOTA: el tip final orienta al usuario al siguiente paso del workflow (s/5).
+# NOTA: la recomendación final orienta al usuario al siguiente paso del workflow.
 mostrar_estado() {
     git fetch --all --prune > /dev/null 2>&1
-
-    local rama
-    rama=$(git rev-parse --abbrev-ref HEAD)
-
-    echo -e "📍 Rama actual: ${YELLOW}[${rama}]${NC}"
-
-    if git rev-parse "${rama}@{upstream}" >/dev/null 2>&1; then
-        local behind ahead
-        behind=$(git rev-list --count HEAD.."${rama}@{upstream}" 2>/dev/null)
-        ahead=$(git rev-list --count "${rama}@{upstream}"..HEAD 2>/dev/null)
-
-        if [ "$behind" -gt 0 ] 2>/dev/null; then
-            echo -e "📥 Hay $behind commits remotos no descargados. Para traerlos: git pull"
-        fi
-
-        if [ "$ahead" -gt 0 ] 2>/dev/null; then
-            echo -e "📤 Hay $ahead commits locales no subidos. Para subirlos: git push"
-        fi
-    else
-        echo "ℹ️ La rama '${rama}' no tiene seguimiento remoto."
-    fi
-
-    echo ""
-    git status --short
-    say_tip "Iniciá sesión con 's' (opción 1) o creá un snapshot desde EXTRAS ('e', opción 4)."
+    mostrar_estado_conversacional
 }
 
 # --- Funciones de bitácora ---
