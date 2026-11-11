@@ -117,7 +117,7 @@ Si ejecutás `git-sidekick` en una carpeta **sin repositorio Git**, el script de
 
 ### Comando `info` (v0.3.0)
 
-Muestra un **resumen completo** del estado del repositorio: rama actual, remote, commits ahead/behind, último snapshot, estado de sesión y la bitácora:
+Muestra un **resumen completo** del estado del repositorio: rama actual, remote, estado del remoto en lenguaje natural, último snapshot, estado de sesión y la bitácora:
 
 ```bash
 ./git-sidekick.sh info
@@ -315,14 +315,14 @@ Trabajás con una **sesión**: cada vez que empezás una tarea, iniciás; cuando
 |----------|------------------------------------------------------------------------|
 | `start`  | Inicia una sesión: stash, checkpoint, snapshot y guarda contexto.     |
 | `close`  | Commitea, crea snapshot de cierre, bitacorea y pucha (opcional).      |
-| `status` | Muestra rama, ahead/behind del upstream y archivos modificados.       |
+| `status` | Muestra rama, estado del remoto y archivos con cambios en lenguaje natural. |
 | `restore`| Lista snapshots y restaura eligiendo uno con `git reset --hard`.      |
 | `snapshot`| Crea un snapshot rápido sin abrir sesión (punto de rescate).          |
 | `clean`  | Borra snapshots antiguos con confirmación previa.                     |
 | `merge <origen> <destino> <nivel>` | Fusiona ramas con preflight remoto, stash seguro y aborto atómico (1=simple, 2=estricto). |
 | `help`   | Muestra la ayuda del script.                                            |
 | `--install-alias` | Instala el alias `gk` en ~/.bash_aliases.                      |
-| `info`   | Muestra rama, remote, ahead/behind, último snapshot y bitácora.       |
+| `info`   | Muestra rama, remote, estado del remoto, último snapshot y bitácora.  |
 | `--dry-run` | Flag: simula cualquier comando sin ejecutarlo (preview seguro).  |
 | (nada)   | Abre el menú interactivo.                                              |
 
@@ -428,13 +428,18 @@ $ ./git-sidekick.sh snapshot mi-fix-bug
 
 ```bash
 $ ./git-sidekick.sh status
-📍 Rama actual: [dev]
-📥 Hay 2 commits remotos no descargados. Para traerlos: git pull
-📤 Hay 1 commits locales no subidos. Para subirlos: git push
+📍 Estás trabajando en la rama: [dev]
+ℹ️ Tu rama está sincronizada con el servidor.
 
- M src/app.js
-?? docs/nuevo.md
+📋 Archivos detectados con cambios:
+- src/app.js (Modificado — tenés cambios sin guardar)
+- docs/nuevo.md (Nuevo — archivo recién creado)
+
+💡 Recomendación:
+Cuando termines, elegí "2) CERRAR sesión" para guardar tus cambios. Si querés un punto de rescate antes, entrá a "4) EXTRAS" y creá un snapshot.
 ```
+
+> 💡 Si necesitás ver los códigos originales de Git (` M`, `??`), usá `SIDEKICK_STATUS_RAW=1 ./git-sidekick.sh status`.
 
 ### Restaurar un snapshot
 
