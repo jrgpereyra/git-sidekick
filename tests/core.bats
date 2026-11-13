@@ -452,6 +452,11 @@ crear_dev_adelantada() {
   echo "$output" | grep -q "gk start"
   echo "$output" | grep -q "gk close"
   echo "$output" | grep -q "gk merge dev main 2"
+  local version
+  version=$(cat "$(dirname "$GKS")/VERSION")
+  echo "$output" | grep -q "git-sidekick v${version}"
+  version_output=$("$GKS" --version 2>&1 || true)
+  echo "$version_output" | grep -q "git-sidekick v${version}"
   ! echo "$output" | grep -q "Opción (1-11)"
   ! echo "$output" | grep -q "\[nivel"
 }

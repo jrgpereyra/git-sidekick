@@ -147,6 +147,7 @@ mostrar_ayuda() {
     echo "  --install-alias - Instala el alias 'gk' en ~/.bash_aliases"
     echo "  help     - Esta ayuda"
     echo "  info     - Muestra información detallada del repositorio"
+    echo "  version  - Muestra la versión actual (también: --version)"
     echo "Todos los comandos aceptan --dry-run para simular sin ejecutar."
     echo "Ejemplo:  gk start --dry-run"
     echo ""
@@ -200,7 +201,7 @@ mostrar_menu() {
         clear_screen
         _rama_actual=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
         echo "------------------------------------------------"
-        echo -e "${BLUE}🎮 git-sidekick v0.4.0${NC}"
+        echo -e "${BLUE}🎮 git-sidekick v${SIDEKICK_VERSION}${NC}"
         if [ -n "$_rama_actual" ]; then
             echo -e "${YELLOW}📍 Rama actual: → $_rama_actual${NC}"
         fi

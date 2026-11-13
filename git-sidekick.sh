@@ -2,7 +2,7 @@
 
 # =============================================================================
 # git-sidekick.sh - Asistente universal de Git para novatos
-# Versión: 0.4.0
+# Versión: ver archivo VERSION
 # Licencia: MIT
 # =============================================================================
 
@@ -21,25 +21,29 @@ if ! command -v git >/dev/null 2>&1; then
 fi
 
 # --- Cargar módulos externos (colores y configuración) ---
-# shellcheck source=lib/colors.sh
-source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib/colors.sh"
-# shellcheck source=lib/config.sh
-source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib/config.sh"
-# shellcheck source=lib/status.sh
-source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib/status.sh"
+SIDEKICK_HOME="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
 
-# shellcheck source=lib/git-helpers.sh
-source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib/git-helpers.sh"
-# shellcheck source=lib/ui.sh
-source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib/ui.sh"
+# shellcheck source=lib/colors.sh disable=SC1091
+source "$SIDEKICK_HOME/lib/colors.sh"
+# shellcheck source=lib/version.sh disable=SC1091
+source "$SIDEKICK_HOME/lib/version.sh"
+# shellcheck source=lib/config.sh disable=SC1091
+source "$SIDEKICK_HOME/lib/config.sh"
+# shellcheck source=lib/status.sh disable=SC1091
+source "$SIDEKICK_HOME/lib/status.sh"
 
-# shellcheck source=lib/workflow.sh
-source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib/workflow.sh"
+# shellcheck source=lib/git-helpers.sh disable=SC1091
+source "$SIDEKICK_HOME/lib/git-helpers.sh"
+# shellcheck source=lib/ui.sh disable=SC1091
+source "$SIDEKICK_HOME/lib/ui.sh"
 
-# shellcheck source=lib/plugins.sh
-source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib/plugins.sh"
-# shellcheck source=lib/ddev.sh
-source "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/lib/ddev.sh"
+# shellcheck source=lib/workflow.sh disable=SC1091
+source "$SIDEKICK_HOME/lib/workflow.sh"
+
+# shellcheck source=lib/plugins.sh disable=SC1091
+source "$SIDEKICK_HOME/lib/plugins.sh"
+# shellcheck source=lib/ddev.sh disable=SC1091
+source "$SIDEKICK_HOME/lib/ddev.sh"
 
 # NOTA: los módulos se sourcean en orden de dependencia; cada source usa
 #   BASH_SOURCE[0] (path robusto) y `# shellcheck source=` documenta el intento.
@@ -144,6 +148,7 @@ main() {
             clean) limpiar_snapshots ;;
             merge) shift; merge_protegido "$@" ;;
             info) mostrar_info ;;
+            version|--version|-v) mostrar_version ;;
             --install-alias) install_alias ;;
             help|--help|-h) mostrar_ayuda ;;
             *) echo -e "${RED}❌ Comando desconocido: $1${NC}"; mostrar_ayuda ;;

@@ -300,6 +300,7 @@ gnpm install                       # después de merge
 | `--dry-run` en todos los comandos | ✅ |
 | `.git-sidekickrc` parser + load_config | ✅ |
 | `info` command detallado | ✅ |
+| Versionado centralizado (`VERSION` + `gk version`) | ✅ |
 | Tono amigable en messages | ✅ |
 | **Tests con `bats-core`** | ✅ (60 tests) |
 | **Plugin Astro** | ⏳ Pendiente (proyecto Astro definido) |

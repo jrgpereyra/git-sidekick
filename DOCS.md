@@ -22,6 +22,7 @@
 - [Merge protegido: garantías de seguridad](#merge-protegido-garantías-de-seguridad)
 - [Uso con asistentes de IA](#uso-con-asistentes-de-ia)
 - [Ejemplos de terminal](#ejemplos-de-terminal)
+- [Versionado](#versionado)
 - [Testing](#testing)
 
 ---
@@ -268,6 +269,7 @@ Opción (0-8): [o "0) Volver al menú principal"]
 ./git-sidekick.sh merge <origen> <destino> <nivel>  # Merge protegido (1=simple, 2=estricto)
 ./git-sidekick.sh help       # Mostrar ayuda
 ./git-sidekick.sh info      # Mostrar información detallada del repositorio
+./git-sidekick.sh version   # Mostrar la versión actual (también --version)
 ./git-sidekick.sh --install-alias     # Instalar alias gk
 ```
 
@@ -322,6 +324,7 @@ Trabajás con una **sesión**: cada vez que empezás una tarea, iniciás; cuando
 | `clean`  | Borra snapshots antiguos con confirmación previa.                     |
 | `merge <origen> <destino> <nivel>` | Fusiona ramas con preflight remoto, stash seguro y aborto atómico (1=simple, 2=estricto). |
 | `help`   | Muestra la ayuda del script.                                            |
+| `version` / `--version` | Muestra la versión leída desde el archivo `VERSION`.       |
 | `--install-alias` | Instala el alias `gk` en ~/.bash_aliases.                      |
 | `info`   | Muestra rama, remote, estado del remoto, último snapshot y bitácora.  |
 | `--dry-run` | Flag: simula cualquier comando sin ejecutarlo (preview seguro).  |
@@ -457,6 +460,23 @@ Ingrese el tag a restaurar (Enter para cancelar): work/2026-08-11_15-02-mi-fix-b
 ¿Confirmar restauración a work/2026-08-11_15-02-mi-fix-bug? [Enter=sí]:
 ✅ Restaurado a work/2026-08-11_15-02-mi-fix-bug
 ```
+
+---
+
+## Versionado
+
+La versión vive en un único archivo en la raíz del repo:
+
+```text
+VERSION
+0.4.0
+```
+
+`lib/version.sh` lo lee al iniciar, limpia espacios/CRLF y expone `SIDEKICK_VERSION`.
+El menú, la ayuda y `gk version` / `gk --version` usan ese mismo valor. Si `VERSION`
+no existe o está vacío, se usa el fallback seguro `0.0.0-dev` y el script sigue funcionando.
+
+Para liberar una versión nueva, actualizá `VERSION` y los badges/documentación que la muestren.
 
 ---
 
