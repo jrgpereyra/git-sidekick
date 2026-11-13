@@ -457,20 +457,23 @@ crear_dev_adelantada() {
 }
 
 @test "submenú Extras abre con 4 y vuelve al menú principal con 0" {
-  output=$(printf '4\n0\n5\n' | "$GKS" 2>&1 || true)
+  output=$(printf '4\n2\n0\n5\n' | "$GKS" 2>&1 || true)
   echo "$output" | grep -q "EXTRAS / HERRAMIENTAS"
   echo "$output" | grep -q "1) Ver estado"
-  echo "$output" | grep -q "2) Restaurar snapshot"
-  echo "$output" | grep -q "3) Crear snapshot"
+  echo "$output" | grep -q "2) Ver info completa"
+  echo "$output" | grep -q "3) Restaurar snapshot"
+  echo "$output" | grep -q "4) Crear snapshot"
   echo "$output" | grep -q "Actualizar dev desde main"
   echo "$output" | grep -q "Fusionar ramas manualmente"
   echo "$output" | grep -q "gk status"
+  echo "$output" | grep -q "gk info"
   echo "$output" | grep -q "gk restore"
   echo "$output" | grep -q "gk snapshot"
   echo "$output" | grep -q "gk clean"
   echo "$output" | grep -q "gk merge main dev 1"
   echo "$output" | grep -q "gk merge <origen> <destino> <1|2>"
   echo "$output" | grep -q "gk help"
+  echo "$output" | grep -q "Información del repositorio"
   echo "$output" | grep -q "SALIR"
   ! echo "$output" | grep -q "\[nivel"
 }

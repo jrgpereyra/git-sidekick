@@ -244,15 +244,16 @@ La opción `4) EXTRAS / HERRAMIENTAS` agrupa las herramientas secundarias:
 🛠️  EXTRAS / HERRAMIENTAS
 ------------------------------------------------
 1) Ver estado                  (gk status)
-2) Restaurar snapshot          (gk restore)
-3) Crear snapshot              (gk snapshot)
-4) Limpiar snapshots           (gk clean)
-5) Actualizar dev desde main   (gk merge main dev 1)
-6) Fusionar ramas manualmente  (gk merge <origen> <destino> <1|2>)
-7) Ayuda                       (gk help)
+2) Ver info completa           (gk info)
+3) Restaurar snapshot          (gk restore)
+4) Crear snapshot              (gk snapshot)
+5) Limpiar snapshots           (gk clean)
+6) Actualizar dev desde main   (gk merge main dev 1)
+7) Fusionar ramas manualmente  (gk merge <origen> <destino> <1|2>)
+8) Ayuda                       (gk help)
 0) Volver al menú principal
 ------------------------------------------------
-Opción (0-7): [o "0) Volver al menú principal"]
+Opción (0-8): [o "0) Volver al menú principal"]
 ```
 
 ### Comandos directos
@@ -436,7 +437,7 @@ $ ./git-sidekick.sh status
 - docs/nuevo.md (Nuevo — archivo recién creado)
 
 💡 Recomendación:
-Cuando termines, elegí "2) CERRAR sesión" para guardar tus cambios. Si querés crear un snapshot antes, entrá a "4) EXTRAS" y elegí "3) Crear snapshot".
+Cuando termines, elegí "2) CERRAR sesión" para guardar tus cambios. Si querés crear un snapshot antes, entrá a "4) EXTRAS" y elegí "4) Crear snapshot".
 ```
 
 > 💡 Si necesitás ver los códigos originales de Git (` M`, `??`), usá `SIDEKICK_STATUS_RAW=1 ./git-sidekick.sh status`.

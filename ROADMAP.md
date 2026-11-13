@@ -127,7 +127,7 @@ La configuración es estática dentro del script (prefijos de tags, nombres de r
   1) INICIAR sesión (gk start · atajo: s)
   2) CERRAR sesión (gk close · atajo: c)
   3) PUBLICAR dev a main (gk merge dev main 2)
-  4) EXTRAS / HERRAMIENTAS (atajo: e) → 1) Ver estado (gk status), 2) Restaurar snapshot (gk restore), 3) Crear snapshot (gk snapshot), 4) Limpiar snapshots (gk clean), 5) Actualizar dev desde main (gk merge main dev 1), 6) Fusionar ramas manualmente (gk merge <origen> <destino> <1|2>), 7) Ayuda (gk help), 0) Volver
+  4) EXTRAS / HERRAMIENTAS (atajo: e) → 1) Ver estado (gk status), 2) Ver info completa (gk info), 3) Restaurar snapshot (gk restore), 4) Crear snapshot (gk snapshot), 5) Limpiar snapshots (gk clean), 6) Actualizar dev desde main (gk merge main dev 1), 7) Fusionar ramas manualmente (gk merge <origen> <destino> <1|2>), 8) Ayuda (gk help), 0) Volver
   5) SALIR (atajo: q)
 - **Estado:** ✅ Implementado en v0.4.0.
 

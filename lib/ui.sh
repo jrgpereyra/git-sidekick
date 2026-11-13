@@ -154,7 +154,7 @@ mostrar_ayuda() {
     echo "  1) INICIAR sesión   (gk start · atajo: s)"
     echo "  2) CERRAR sesión    (gk close · atajo: c)"
     echo "  3) PUBLICAR ${DEV_BRANCH} a ${DEFAULT_BRANCH} (gk merge ${DEV_BRANCH} ${DEFAULT_BRANCH} 2)"
-    echo "  4) EXTRAS           (atajo: e) → ver estado, crear snapshot, restaurar, limpiar, fusionar, ayuda"
+    echo "  4) EXTRAS           (atajo: e) → ver estado, ver info, crear snapshot, restaurar, limpiar, fusionar, ayuda"
     echo "  5) SALIR            (atajo: q)"
     echo "========================================="
 }
@@ -306,15 +306,16 @@ mostrar_menu_extras() {
         echo -e "${BLUE}🛠️  EXTRAS / HERRAMIENTAS${NC}"
         echo "------------------------------------------------"
         printf '%-30s (%s)\n' "1) Ver estado" "gk status"
-        printf '%-30s (%s)\n' "2) Restaurar snapshot" "gk restore"
-        printf '%-30s (%s)\n' "3) Crear snapshot" "gk snapshot"
-        printf '%-30s (%s)\n' "4) Limpiar snapshots" "gk clean"
-        printf '%-30s (%s)\n' "5) Actualizar ${DEV_BRANCH} desde ${DEFAULT_BRANCH}" "gk merge ${DEFAULT_BRANCH} ${DEV_BRANCH} 1"
-        printf '%-30s (%s)\n' "6) Fusionar ramas manualmente" "gk merge <origen> <destino> <1|2>"
-        printf '%-30s (%s)\n' "7) Ayuda" "gk help"
+        printf '%-30s (%s)\n' "2) Ver info completa" "gk info"
+        printf '%-30s (%s)\n' "3) Restaurar snapshot" "gk restore"
+        printf '%-30s (%s)\n' "4) Crear snapshot" "gk snapshot"
+        printf '%-30s (%s)\n' "5) Limpiar snapshots" "gk clean"
+        printf '%-30s (%s)\n' "6) Actualizar ${DEV_BRANCH} desde ${DEFAULT_BRANCH}" "gk merge ${DEFAULT_BRANCH} ${DEV_BRANCH} 1"
+        printf '%-30s (%s)\n' "7) Fusionar ramas manualmente" "gk merge <origen> <destino> <1|2>"
+        printf '%-30s (%s)\n' "8) Ayuda" "gk help"
         echo "0) Volver al menú principal"
         echo "------------------------------------------------"
-        read -r -p "Opción (0-7): " opt || break
+        read -r -p "Opción (0-8): " opt || break
         case $opt in
             1)
                 clear_screen
@@ -323,30 +324,35 @@ mostrar_menu_extras() {
                 ;;
             2)
                 clear_screen
-                restaurar_snapshot
+                mostrar_info
                 pausa
                 ;;
             3)
                 clear_screen
-                crear_snapshot
+                restaurar_snapshot
                 pausa
                 ;;
             4)
                 clear_screen
-                limpiar_snapshots
+                crear_snapshot
                 pausa
                 ;;
             5)
                 clear_screen
-                merge_protegido "${DEFAULT_BRANCH}" "${DEV_BRANCH}" "1"
+                limpiar_snapshots
                 pausa
                 ;;
             6)
                 clear_screen
-                fusionar_personalizado
+                merge_protegido "${DEFAULT_BRANCH}" "${DEV_BRANCH}" "1"
                 pausa
                 ;;
             7)
+                clear_screen
+                fusionar_personalizado
+                pausa
+                ;;
+            8)
                 clear_screen
                 mostrar_ayuda
                 pausa

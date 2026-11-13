@@ -296,7 +296,7 @@ recomendar_siguiente_paso() {
             printf '%s\n' "Después, elegí \"2) CERRAR sesión\" para guardar tus cambios."
         fi
     elif [ "$num_total" -gt 0 ]; then
-        printf '%s\n' "Cuando termines, elegí \"2) CERRAR sesión\" para guardar tus cambios. Si querés crear un snapshot antes, entrá a \"4) EXTRAS\" y elegí \"3) Crear snapshot\"."
+        printf '%s\n' "Cuando termines, elegí \"2) CERRAR sesión\" para guardar tus cambios. Si querés crear un snapshot antes, entrá a \"4) EXTRAS\" y elegí \"4) Crear snapshot\"."
     elif [ -f "${CONTEXT_FILE:-}" ]; then
         printf '%s\n' "No hay cambios pendientes y tu sesión está activa. Cuando termines, elegí \"2) CERRAR sesión\"."
     else
