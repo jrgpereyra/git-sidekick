@@ -124,11 +124,11 @@ La configuración es estática dentro del script (prefijos de tags, nombres de r
 ### 4.6 Menú reordenado (UX-friendly)
 - **Problema:** `AYUDA` y `SALIR` estaban en medio del menú; las opciones de merge estaban antes que las de rescate; las herramientas secundarias estaban mezcladas con el flujo principal.
 - **Solución:** Rediseño final del menú a 5 opciones + submenú Extras:
-  1) INICIAR sesión (s)
-  2) CERRAR sesión (c)
-  3) PUBLICAR dev a main
-  4) EXTRAS / HERRAMIENTAS (e) → 1) Ver estado, 2) Restaurar snapshot, 3) Crear snapshot, 4) Limpiar snapshots, 5) Actualizar dev desde main, 6) Fusionar ramas manualmente, 7) Ayuda, 0) Volver
-  5) SALIR (q)
+  1) INICIAR sesión (gk start · atajo: s)
+  2) CERRAR sesión (gk close · atajo: c)
+  3) PUBLICAR dev a main (gk merge dev main 2)
+  4) EXTRAS / HERRAMIENTAS (atajo: e) → 1) Ver estado (gk status), 2) Restaurar snapshot (gk restore), 3) Crear snapshot (gk snapshot), 4) Limpiar snapshots (gk clean), 5) Actualizar dev desde main (gk merge main dev 1), 6) Fusionar ramas manualmente (gk merge <origen> <destino> <1|2>), 7) Ayuda (gk help), 0) Volver
+  5) SALIR (atajo: q)
 - **Estado:** ✅ Implementado en v0.4.0.
 
 ### 4.7 Detección de repo padre (evita mezclar carpetas)

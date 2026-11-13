@@ -226,11 +226,11 @@ Ejecutalo sin argumentos y navegá el menú con números:
 🎮 git-sidekick v0.4.0
 📍 Rama actual: → main
 ------------------------------------------------
-1) INICIAR sesión        (atajo: s)
-2) CERRAR sesión         (atajo: c)
-3) PUBLICAR dev a main
-4) EXTRAS / HERRAMIENTAS (atajo: e)
-5) SALIR                 (atajo: q)
+1) INICIAR sesión            (gk start · atajo: s)
+2) CERRAR sesión             (gk close · atajo: c)
+3) PUBLICAR dev a main        (gk merge dev main 2)
+4) EXTRAS / HERRAMIENTAS      (atajo: e)
+5) SALIR                      (atajo: q)
 ------------------------------------------------
 Opción (1-5) [s/c/e/q]:
 ```
@@ -243,13 +243,13 @@ La opción `4) EXTRAS / HERRAMIENTAS` agrupa las herramientas secundarias:
 ------------------------------------------------
 🛠️  EXTRAS / HERRAMIENTAS
 ------------------------------------------------
-1) Ver estado
-2) Restaurar snapshot
-3) Crear snapshot
-4) Limpiar snapshots
-5) Actualizar dev desde main
-6) Fusionar ramas manualmente
-7) Ayuda
+1) Ver estado                  (gk status)
+2) Restaurar snapshot          (gk restore)
+3) Crear snapshot              (gk snapshot)
+4) Limpiar snapshots           (gk clean)
+5) Actualizar dev desde main   (gk merge main dev 1)
+6) Fusionar ramas manualmente  (gk merge <origen> <destino> <1|2>)
+7) Ayuda                       (gk help)
 0) Volver al menú principal
 ------------------------------------------------
 Opción (0-7): [o "0) Volver al menú principal"]

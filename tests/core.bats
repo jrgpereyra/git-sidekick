@@ -449,6 +449,9 @@ crear_dev_adelantada() {
   echo "$output" | grep -q "3) PUBLICAR dev a main"
   echo "$output" | grep -q "4) EXTRAS / HERRAMIENTAS"
   echo "$output" | grep -q "5) SALIR"
+  echo "$output" | grep -q "gk start"
+  echo "$output" | grep -q "gk close"
+  echo "$output" | grep -q "gk merge dev main 2"
   ! echo "$output" | grep -q "Opción (1-11)"
   ! echo "$output" | grep -q "\[nivel"
 }
@@ -461,6 +464,13 @@ crear_dev_adelantada() {
   echo "$output" | grep -q "3) Crear snapshot"
   echo "$output" | grep -q "Actualizar dev desde main"
   echo "$output" | grep -q "Fusionar ramas manualmente"
+  echo "$output" | grep -q "gk status"
+  echo "$output" | grep -q "gk restore"
+  echo "$output" | grep -q "gk snapshot"
+  echo "$output" | grep -q "gk clean"
+  echo "$output" | grep -q "gk merge main dev 1"
+  echo "$output" | grep -q "gk merge <origen> <destino> <1|2>"
+  echo "$output" | grep -q "gk help"
   echo "$output" | grep -q "SALIR"
   ! echo "$output" | grep -q "\[nivel"
 }
