@@ -290,7 +290,7 @@ inicializar_repo() {
 # POR QUÉ: cambiar de rama con cambios sin stash puede perderlos inesperadamente.
 # NOTA: read -r evita mangling; ""|s|S|y|Y acepta Enter/sí/Enter-default.
 stash_auto() {
-    if simulate "Hacer stash de cambios no commiteados (git stash)"; then
+    if simulate "Hacer stash de cambios sin guardar (git stash)"; then
         return 0
     fi
     if ! tiene_cambios; then
@@ -353,7 +353,7 @@ mostrar_info() {
 
     local ult_tag
     ult_tag=$(ultimo_tag)
-    echo "   📸 Último tag:  ${ult_tag}"
+    echo "   📸 Último snapshot:  ${ult_tag}"
 
     if [ -f "$CONTEXT_FILE" ]; then
         echo "   📌 Sesión:     Activa (hay contexto guardado)"
@@ -373,7 +373,7 @@ mostrar_info() {
     echo ""
     echo -e "${CYAN}💡 Tips:${NC}"
     echo "   • 'gk start'  → Iniciar una sesión de trabajo"
-    echo "   • 'gk close'  → Commitear + snapshot de cierre"
+    echo "   • 'gk close'  → Guardar cambios + snapshot de cierre"
     echo "   • 'gk status' → Ver estado rápido"
     if [ "$DRY_RUN" = "true" ]; then
         echo -e "${YELLOW}   ⚠️ Recordá: estás en modo SIMULACIÓN.${NC}"
@@ -482,7 +482,7 @@ crear_snapshot() {
         nombre="${prefijo}/${fecha}"
     fi
     if simulate "Crear snapshot (git tag $nombre)"; then
-        echo -e "${BLUE}   └─ Tag que crearía: ${nombre}${NC}"
+        echo -e "${BLUE}   └─ Snapshot que crearía: ${nombre}${NC}"
         return 0
     fi
     if git tag "$nombre" -m "Snapshot: ${etiqueta:-sin-etiqueta}" >/dev/null 2>&1; then
@@ -490,7 +490,7 @@ crear_snapshot() {
         say_tip "Restaurá con 'gk restore' o desde EXTRAS ('e') si lo necesitás."
         return 0
     else
-        say_error "No pude crear el tag '$nombre'."
+        say_error "No pude crear el snapshot '$nombre'."
         say_tip "Verificá que el nombre no esté repetido y que tengas permisos"
         return 1
     fi
@@ -559,7 +559,7 @@ restaurar_snapshot() {
     fi
     echo -e "${YELLOW}⚠️ Se perderán todos los cambios no guardados.${NC}"
     if git reset --hard -q "$tag"; then
-        say_success "Restaurado a $tag ✓"
+        say_success "Restaurado al snapshot $tag ✓"
         say_tip "Volvé a iniciar sesión con 's' (opción 1), o revisá con 'gk info'."
         return 0
     else
@@ -619,7 +619,7 @@ limpiar_snapshots() {
         return 0
     fi
 
-    echo -e "${YELLOW}Tags a eliminar:${NC}"
+    echo -e "${YELLOW}Snapshots a eliminar:${NC}"
     for i in "${a_borrar[@]}"; do
         echo "  $i"
     done
@@ -732,8 +732,8 @@ start_session() {
     if [ -n "$snapshot_tag" ]; then
         guardar_contexto "$rama" "inicio" "$snapshot_tag"
         say_success "SESIÓN INICIADA en [${rama}] ✓"
-        say_info "Tag de inicio: ${snapshot_tag}"
-        say_tip "Editá, agregá y commiteá. Cerrás con 'c' (opción 2)."
+        say_info "Snapshot de inicio: ${snapshot_tag}"
+        say_tip "Editá y guardá tus cambios. Cerrás con 'c' (opción 2)."
     else
         echo -e "${RED}❌ Error al crear el snapshot de inicio.${NC}"
         return 1
@@ -748,8 +748,8 @@ start_session() {
 # NOTA: el worklog se escribe después del commit principal, por eso se commitea aparte
 #   para no dejar el árbol sucio al finalizar.
 close_session() {
-    if simulate "Cerrar sesión: exportar config + commit + snapshot + (push opcional)"; then
-        echo -e "${BLUE}   └─ No se commitea ni sube nada.${NC}"
+    if simulate "Cerrar sesión: guardar cambios + snapshot + (push opcional)"; then
+        echo -e "${BLUE}   └─ No se guarda ni sube nada.${NC}"
         echo -e "${BLUE}   └─ Usá 'gk close' sin --dry-run para ejecutar.${NC}"
         return 0
     fi
@@ -764,21 +764,45 @@ close_session() {
 
     leer_contexto
 
+    local cambios_pendientes
+    cambios_pendientes=$(contar_cambios_sin_guardar)
+    case "$cambios_pendientes" in
+        ''|*[!0-9]*) cambios_pendientes=0 ;;
+    esac
+
     local fecha
     fecha=$(date +%F_%H-%M)
     local mensaje_sugerido="Sesión en ${rama} - ${fecha}"
     local mensaje
-    read -r -p "Mensaje de commit [Enter para usar sugerido: 'Sesión en <rama> - <fecha>']: " mensaje
-    if [ -z "$mensaje" ]; then
-        mensaje="$mensaje_sugerido"
+
+    if [ "$cambios_pendientes" -eq 0 ]; then
+        say_info "No hay cambios para guardar; cierro la sesión."
+        mensaje="Sesión sin cambios"
+    else
+        say_info "Vas a guardar ${cambios_pendientes} archivo(s) con cambios."
+        local confirmar
+        read -r -p "¿Guardar estos cambios y cerrar sesión? [Enter=sí / n=volver al menú]: " confirmar
+        case "$confirmar" in
+            ""|s|S|y|Y)
+                ;;
+            *)
+                say_info "No se guardó nada. Seguís en la sesión [${rama}]."
+                return 0
+                ;;
+        esac
+
+        read -r -p "Mensaje de commit [Enter para usar sugerido: 'Sesión en <rama> - <fecha>']: " mensaje
+        if [ -z "$mensaje" ]; then
+            mensaje="$mensaje_sugerido"
+        fi
     fi
 
     git add . 2>/dev/null
     git reset -q HEAD -- "$CONTEXT_FILE" 2>/dev/null || true
     if tiene_cambios; then
         git commit -m "$mensaje" >/dev/null 2>&1
-    else
-        echo "No hay cambios para commitear."
+    elif [ "$cambios_pendientes" -gt 0 ]; then
+        echo "No hay cambios para guardar."
     fi
 
     local etiqueta
@@ -821,10 +845,11 @@ close_session() {
 
     limpiar_contexto
     if [ "$worklog_pending" = true ]; then
-        say_error "No pude commitear ${WORKLOG_FILE}. Revisá 'git status'."
+        say_error "No pude guardar ${WORKLOG_FILE}. Revisá 'git status'."
         return 1
     fi
     say_success "SESIÓN CERRADA. Todo guardado ✓"
+    mostrar_alerta_publicaciones_pendientes "cierre"
     say_tip "Iniciá otra con 's' (opción 1), o restaurá un punto desde EXTRAS ('e')."
 }
 # --- FUNCIÓN: cambiar_rama ---
@@ -838,7 +863,7 @@ cambiar_rama() {
 
     if [ -z "$target_branch" ]; then
         say_error "Debés especificar el nombre de la rama."
-        say_tip "Ej: 'gk start' (opción 0) para crear una rama nueva"
+        say_tip "Ej: 'gk start' y elegí 0 para crear una rama nueva"
         return 1
     fi
 
@@ -968,10 +993,10 @@ _merge_stash_restore() {
     if apply_err=$(git stash apply --index "$ref" 2>&1); then
         :
     elif apply_err=$(git stash apply "$ref" 2>&1); then
-        say_warn "Restauré tus cambios, pero no el estado del staging."
+        say_warn "Tus cambios volvieron, pero no quedaron preparados para guardar."
     else
-        say_error "No pude restaurar automáticamente tus cambios locales."
-        say_tip "Siguen guardados en '$ref'. Recuperalos con: git stash list"
+        say_error "No pude recuperar tus cambios pendientes."
+        say_tip "Siguen guardados en el stash temporal. Recuperalos con: git stash list"
         say_tip "Detalle: $apply_err"
         return 1
     fi
@@ -1024,7 +1049,7 @@ _merge_cleanup() {
             _MERGE_STASHED=false
             _merge_stash_restore "$_MERGE_STASH_SHA" || true
         else
-            say_warn "Tus cambios siguen en el stash para evitar mezclarlos en otra rama."
+            say_warn "No recuperé tus cambios para no mezclarlos en otra rama."
         fi
     fi
 
@@ -1164,7 +1189,7 @@ merge_protegido() {
     if arbol_sucio; then
         case "$AUTO_STASH" in
             false|FALSE|False)
-                say_error "Hay cambios sin commitear y AUTO_STASH=false."
+                say_error "Hay cambios sin guardar y AUTO_STASH=false."
                 say_tip "Commiteá o descartá los cambios, o poné AUTO_STASH=true en .git-sidekickrc."
                 _MERGE_ACTIVE=false
                 _merge_traps_off
@@ -1172,7 +1197,7 @@ merge_protegido() {
                 ;;
         esac
 
-        say_warn "Hay cambios sin commitear; los guardaré en un stash temporal."
+        say_warn "Hay cambios sin guardar; los guardaré en un stash temporal."
         if ! stash_sha=$(_merge_stash_push "Auto-stash pre-merge ${origen}→${destino}"); then
             say_error "No pude guardar los cambios en stash."
             say_tip "Probá manualmente: git stash push -u -m 'pre-merge'"
@@ -1251,11 +1276,11 @@ merge_protegido() {
 
     if [ "$_MERGE_STASHED" = "true" ]; then
         if [ "$volver_ok" = false ]; then
-            say_warn "No restauré tus cambios para no mezclarlos en la rama equivocada."
-            say_tip "Siguen guardados en el stash: git stash list"
+            say_warn "No recuperé tus cambios para no mezclarlos en la rama equivocada."
+            say_tip "Siguen guardados en el stash temporal: git stash list"
             restore_failed=true
         elif _merge_stash_restore "$_MERGE_STASH_SHA"; then
-            say_success "Tus cambios locales fueron restaurados ✓"
+            say_success "¡Todo listo! Tus cambios pendientes están de vuelta. Podés seguir trabajando."
         else
             restore_failed=true
         fi

@@ -30,7 +30,7 @@
 
 - 📋 **Menú interactivo** y **comandos directos** (`start`, `close`, `status`, `restore`, `snapshot`, `clean`, …).
 - 📸 **Snapshots con tags de Git** como puntos de control (p. ej. `work/2026-08-11_14-30-login`).
-- 📦 **Stash automático** al cambiar de rama para no perder cambios sin commitear.
+- 📦 **Stash automático** al cambiar de rama para no perder cambios sin guardar.
 - 🔀 **Merge protegido**: verificación remota (`fetch` + upstream), stash seguro con untracked, aborto atómico y trap de limpieza.
 - 📝 **Bitácora automática** en Markdown (`.git-worklog.md`) que registra cada sesión.
 - ⏪ **Restauración** a puntos anteriores con `git reset --hard` a un snapshot.
@@ -228,7 +228,7 @@ Ejecutalo sin argumentos y navegá el menú con números:
 ------------------------------------------------
 1) INICIAR sesión        (atajo: s)
 2) CERRAR sesión         (atajo: c)
-3) PUBLICAR dev a main     (dev → main)  [nivel 2]
+3) PUBLICAR dev a main
 4) EXTRAS / HERRAMIENTAS (atajo: e)
 5) SALIR                 (atajo: q)
 ------------------------------------------------
@@ -243,23 +243,23 @@ La opción `4) EXTRAS / HERRAMIENTAS` agrupa las herramientas secundarias:
 ------------------------------------------------
 🛠️  EXTRAS / HERRAMIENTAS
 ------------------------------------------------
-1) VER ESTADO
-2) RESTAURAR punto
-3) SNAPSHOT (rescate)
-4) LIMPIAR snapshots
-5) ACTUALIZAR dev con main (main → dev)  [nivel 1]
-6) FUSIONAR personalizado
-7) AYUDA
-0) VOLVER al menú principal
+1) Ver estado
+2) Restaurar snapshot
+3) Crear snapshot
+4) Limpiar snapshots
+5) Actualizar dev desde main
+6) Fusionar ramas manualmente
+7) Ayuda
+0) Volver al menú principal
 ------------------------------------------------
-Opción (0-7): [o "0) VOLVER al menú principal"]
+Opción (0-7): [o "0) Volver al menú principal"]
 ```
 
 ### Comandos directos
 
 ```bash
 ./git-sidekick.sh start      # Iniciar sesión de trabajo
-./git-sidekick.sh close      # Cerrar sesión y commitear
+./git-sidekick.sh close      # Cerrar sesión y guardar cambios
 ./git-sidekick.sh status     # Ver estado de la rama
 ./git-sidekick.sh restore    # Restaurar a un snapshot
 ./git-sidekick.sh snapshot   # Crear un snapshot rápido
@@ -314,10 +314,10 @@ Trabajás con una **sesión**: cada vez que empezás una tarea, iniciás; cuando
 | Comando  | Acción                                                                 |
 |----------|------------------------------------------------------------------------|
 | `start`  | Inicia una sesión: stash, checkpoint, snapshot y guarda contexto.     |
-| `close`  | Commitea, crea snapshot de cierre, bitacorea y pucha (opcional).      |
+| `close`  | Guarda cambios, crea snapshot de cierre, bitacorea y pucha (opcional). |
 | `status` | Muestra rama, estado del remoto y archivos con cambios en lenguaje natural. |
 | `restore`| Lista snapshots y restaura eligiendo uno con `git reset --hard`.      |
-| `snapshot`| Crea un snapshot rápido sin abrir sesión (punto de rescate).          |
+| `snapshot`| Crea un snapshot sin abrir sesión.                                    |
 | `clean`  | Borra snapshots antiguos con confirmación previa.                     |
 | `merge <origen> <destino> <nivel>` | Fusiona ramas con preflight remoto, stash seguro y aborto atómico (1=simple, 2=estricto). |
 | `help`   | Muestra la ayuda del script.                                            |
@@ -377,9 +377,9 @@ Además se valida que origen y destino sean distintos, que no haya otro merge/re
 |----------------------|---------------------------|
 | _"Iniciá sesión en dev con etiqueta arreglo-login"_ | `./git-sidekick.sh start` → rama `dev`, checkpoint, snapshot `work/...-arreglo-login` |
 | _"Cambiá a la rama main"_ | `./git-sidekick.sh start` → rama `main` (stash automático si hay cambios) |
-| _"Creá un snapshot rápido de rescate"_ | `./git-sidekick.sh snapshot` |
+| _"Creá un snapshot"_ | `./git-sidekick.sh snapshot` |
 | _"Restaurá al último snapshot"_ | `./git-sidekick.sh restore` |
-| _"Cerrá la sesión con mensaje fix: validación del formulario"_ | `./git-sidekick.sh close` → commitea con ese mensaje, crea snapshot de cierre |
+| _"Cerrá la sesión con mensaje fix: validación del formulario"_ | `./git-sidekick.sh close` → guarda los cambios con ese mensaje, crea snapshot de cierre |
 | _"Limpiá snapshots viejos"_ | `./git-sidekick.sh clean` |
 | _"Mergeá feature-login en main con protección estricta"_ | `./git-sidekick.sh merge feature-login main 2` → preflight remoto, snapshot de seguridad, stash seguro, aborto ante conflicto y push |
 | _"¿En qué estado está todo?"_ | `./git-sidekick.sh status` |
@@ -436,7 +436,7 @@ $ ./git-sidekick.sh status
 - docs/nuevo.md (Nuevo — archivo recién creado)
 
 💡 Recomendación:
-Cuando termines, elegí "2) CERRAR sesión" para guardar tus cambios. Si querés un punto de rescate antes, entrá a "4) EXTRAS" y creá un snapshot.
+Cuando termines, elegí "2) CERRAR sesión" para guardar tus cambios. Si querés crear un snapshot antes, entrá a "4) EXTRAS" y elegí "3) Crear snapshot".
 ```
 
 > 💡 Si necesitás ver los códigos originales de Git (` M`, `??`), usá `SIDEKICK_STATUS_RAW=1 ./git-sidekick.sh status`.
@@ -462,14 +462,14 @@ Ingrese el tag a restaurar (Enter para cancelar): work/2026-08-11_15-02-mi-fix-b
 ## Testing
 
 ```bash
-bats tests/core.bats      # suite completa (47 tests)
+bats tests/core.bats      # suite completa (60 tests)
 ./git-sidekick.sh --dry-run    # simular antes de un cambio grande
 ```
 
-- Tests en `tests/core.bats`: **47/47 passing**.
+- Tests en `tests/core.bats`: **60/60 passing**.
 - Cubren dry-run, configuración, info, snapshots, workflow `start`/`close` y el merge endurecido (preflight remoto, stash con untracked, conflicto atómico, worktree ocupada y push fallido).
 - `--dry-run` corta toda ejecución antes de prompts → ideal para safe-checks.
-- `.git-sidekick-context` nunca debe commitearse (está en `.gitignore`).
+- `.git-sidekick-context` nunca debe guardarse en Git (está en `.gitignore`).
 
 ---
 

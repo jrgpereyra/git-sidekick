@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # =============================================================================
 # lib/status.sh - Render conversacional del estado de Git (novatos)
-# Requiere: lib/colors.sh (say_* y colores) y lib/config.sh (CONTEXT_FILE)
+# Requiere: lib/colors.sh (say_* y colores), lib/config.sh (CONTEXT_FILE)
+#           y lib/git-helpers.sh (contar_cambios_sin_guardar, cargado antes del menú)
 # =============================================================================
 # Flujo: traduce `git status --porcelain` a lenguaje natural, describe el estado
 # remoto y recomienda el siguiente paso del menú. No muestra códigos XY salvo
@@ -226,6 +227,56 @@ renderizar_archivos_git() {
     fi
 }
 
+# --- FUNCIÓN: mostrar_resumen_cambios_menu ---
+# PROPÓSITO: mostrar un resumen pasivo de cambios pendientes en el menú principal.
+# PARÁMETROS: $1 = máximo de archivos a listar (default 3).
+# RETORNA: 0 (siempre); imprime estado + hasta N archivos, sin prompts ni commits.
+# POR QUÉ: el novato ve qué falta guardar sin que el menú lo obligue a commitear.
+# NOTA: sólo lee `git status` local (sin fetch) y excluye CONTEXT_FILE.
+mostrar_resumen_cambios_menu() {
+    local limite="${1:-3}" total mostrados=0 linea xy ruta origen
+
+    case "$limite" in
+        ''|*[!0-9]*|0) limite=3 ;;
+    esac
+
+    total=$(contar_cambios_sin_guardar)
+    case "$total" in
+        ''|*[!0-9]*) total=0 ;;
+    esac
+
+    if [ "$total" -eq 0 ]; then
+        say_info "Sin cambios pendientes."
+        return 0
+    fi
+
+    say_warn "${total} archivo(s) con cambios sin guardar."
+
+    while IFS= read -r -d '' linea; do
+        [ -z "$linea" ] && continue
+        xy="${linea:0:2}"
+        ruta="${linea:3}"
+        origen=""
+        case "$xy" in
+            R*|C*) IFS= read -r -d '' origen || origen="" ;;
+        esac
+        if [ "$ruta" = "$CONTEXT_FILE" ] || [ "$origen" = "$CONTEXT_FILE" ]; then
+            continue
+        fi
+        [ "$mostrados" -ge "$limite" ] && continue
+        case "$xy" in
+            R*|C*) [ -n "$origen" ] && ruta="${origen} -> ${ruta}" ;;
+        esac
+        printf -- '- %s\n' "$(describir_archivo "$xy" "$ruta")"
+        mostrados=$((mostrados + 1))
+    done < <(git -c core.quotePath=false status --porcelain -z 2>/dev/null)
+
+    if [ "$total" -gt "$mostrados" ]; then
+        echo "... y $((total - mostrados)) archivo(s) más"
+    fi
+    say_tip "[2] para cerrar sesión · [4] para ver detalle."
+}
+
 # --- FUNCIÓN: recomendar_siguiente_paso ---
 # PROPÓSITO: orientar al novato según conflictos, remoto y archivos pendientes.
 # PARÁMETROS: $1 = cantidad de conflictos, $2 = total de archivos con cambios.
@@ -245,11 +296,11 @@ recomendar_siguiente_paso() {
             printf '%s\n' "Después, elegí \"2) CERRAR sesión\" para guardar tus cambios."
         fi
     elif [ "$num_total" -gt 0 ]; then
-        printf '%s\n' "Cuando termines, elegí \"2) CERRAR sesión\" para guardar tus cambios. Si querés un punto de rescate antes, entrá a \"4) EXTRAS\" y creá un snapshot."
+        printf '%s\n' "Cuando termines, elegí \"2) CERRAR sesión\" para guardar tus cambios. Si querés crear un snapshot antes, entrá a \"4) EXTRAS\" y elegí \"3) Crear snapshot\"."
     elif [ -f "${CONTEXT_FILE:-}" ]; then
         printf '%s\n' "No hay cambios pendientes y tu sesión está activa. Cuando termines, elegí \"2) CERRAR sesión\"."
     else
-        printf '%s\n' "No hay cambios pendientes. Elegí \"1) INICIAR sesión\" para empezar a trabajar o \"4) EXTRAS\" para crear un punto de rescate."
+        printf '%s\n' "No hay cambios pendientes. Elegí \"1) INICIAR sesión\" para empezar a trabajar o \"4) EXTRAS\" para crear un snapshot."
     fi
 }
 

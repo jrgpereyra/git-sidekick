@@ -3,6 +3,7 @@
 # lib/git-helpers.sh - Funciones auxiliares de Git (consultas/operaciones)
 # Extraído de git-sidekick.sh para modularización (ROADMAP v2.0, Sesión 2)
 # Requiere: lib/colors.sh (para say_* y variables de color)
+#           lib/config.sh (para DEFAULT_BRANCH y DEV_BRANCH)
 # =============================================================================
 # Flujo: introspección git + presentación de errores. check_git/tiene_cambios para
 # guardas; listar_ramas/disponibles/timestamp para info; say_git_error para errores.
@@ -136,6 +137,63 @@ tiene_cambios() {
 # NOTA: --porcelain respeta .gitignore y da salida estable entre versiones.
 arbol_sucio() {
     [ -n "$(git status --porcelain 2>/dev/null)" ]
+}
+
+# --- Conteo de archivos con cambios sin guardar (excluye el contexto de sesión) ---
+# --- FUNCIÓN: contar_cambios_sin_guardar ---
+# PROPÓSITO: contar archivos modificados, staged o no rastreados que close podría guardar.
+# PARÁMETROS: (ninguno; usa CONTEXT_FILE de config.sh).
+# RETORNA: 0 (siempre); imprime un número entero (0 si no hay cambios).
+# POR QUÉ: el menú muestra un resumen pasivo y close evita pedir commit si no hay nada.
+# NOTA: excluye CONTEXT_FILE porque es estado local de la sesión, no trabajo a versionar.
+contar_cambios_sin_guardar() {
+    local total=0 linea xy ruta _origen
+
+    while IFS= read -r -d '' linea; do
+        [ -z "$linea" ] && continue
+        xy="${linea:0:2}"
+        ruta="${linea:3}"
+        _origen=""
+        case "$xy" in
+            R*|C*) IFS= read -r -d '' _origen || _origen="" ;;
+        esac
+        if [ "$ruta" = "$CONTEXT_FILE" ] || [ "$_origen" = "$CONTEXT_FILE" ]; then
+            continue
+        fi
+        total=$((total + 1))
+    done < <(git -c core.quotePath=false status --porcelain -z 2>/dev/null)
+
+    printf '%s\n' "$total"
+}
+
+# --- Conteo de commits pendientes de publicar ---
+# --- FUNCIÓN: contar_commits_sin_publicar ---
+# PROPÓSITO: contar cuántos commits tiene DEV_BRANCH que aún no están en DEFAULT_BRANCH.
+# PARÁMETROS: (ninguno; usa DEFAULT_BRANCH y DEV_BRANCH de config.sh).
+# RETORNA: 0 (siempre); imprime un número entero (0 si no se puede calcular).
+# POR QUÉ: el menú y el cierre avisan al novato cuando falta PUBLICAR dev → main.
+# NOTA: ramas ausentes, configuración vacía o salida inválida se tratan como 0.
+contar_commits_sin_publicar() {
+    local pendientes
+
+    if [ -z "$DEV_BRANCH" ] || [ -z "$DEFAULT_BRANCH" ] || [ "$DEV_BRANCH" = "$DEFAULT_BRANCH" ]; then
+        printf '0\n'
+        return 0
+    fi
+    if ! git show-ref --verify --quiet "refs/heads/$DEV_BRANCH" 2>/dev/null; then
+        printf '0\n'
+        return 0
+    fi
+    if ! git show-ref --verify --quiet "refs/heads/$DEFAULT_BRANCH" 2>/dev/null; then
+        printf '0\n'
+        return 0
+    fi
+
+    pendientes=$(git rev-list --count "${DEFAULT_BRANCH}..${DEV_BRANCH}" 2>/dev/null)
+    case "$pendientes" in
+        ''|*[!0-9]*) pendientes=0 ;;
+    esac
+    printf '%s\n' "$pendientes"
 }
 
 # --- Detección de rama ocupada por otra worktree ---

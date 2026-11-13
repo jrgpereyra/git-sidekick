@@ -69,9 +69,9 @@ mostrar_onboarding() {
     echo "│ "
     echo "│  Desde el menú interactivo:"
     echo "│    1) INICIAR sesión   (atajo: s)"
-    echo "│    2) CERRAR sesión    (atajo: c) → commitear + tag"
+    echo "│    2) CERRAR sesión    (atajo: c) → guardar cambios + snapshot"
     echo "│    3) PUBLICAR ${DEV_BRANCH} a ${DEFAULT_BRANCH}"
-    echo "│    4) EXTRAS  (atajo: e) → estado/snapshot/restaurar"
+    echo "│    4) EXTRAS  (atajo: e) → ver estado / crear snapshot / restaurar"
     echo "│    5) SALIR            (atajo: q)"
     echo "│ "
     echo "│  Desde la terminal:"
@@ -138,11 +138,12 @@ mostrar_ayuda() {
     echo "  start    - Iniciar sesión (lista ramas numeradas)"
     echo "  close    - Cerrar sesión"
     echo "  status   - Ver estado"
-    echo "  restore  - Restaurar punto"
-    echo "  snapshot - Rescate rápido"
-    echo "  clean    - Limpiar viejos"
-    echo "  merge    - Merge protegido (origen destino nivel)"
+    echo "  restore  - Restaurar un snapshot"
+    echo "  snapshot - Crear un snapshot"
+    echo "  clean    - Limpiar snapshots viejos"
+    echo "  merge    - Fusionar ramas con protección"
     echo "    uso:    merge <origen> <destino> <1|2>"
+    echo "            1 = simple · 2 = estricto"
     echo "  --install-alias - Instala el alias 'gk' en ~/.bash_aliases"
     echo "  help     - Esta ayuda"
     echo "  info     - Muestra información detallada del repositorio"
@@ -153,9 +154,37 @@ mostrar_ayuda() {
     echo "  1) INICIAR sesión   (s)"
     echo "  2) CERRAR sesión    (c)"
     echo "  3) PUBLICAR ${DEV_BRANCH} a ${DEFAULT_BRANCH}"
-    echo "  4) EXTRAS           (e) → estado, snapshot, restore, clean, merges, ayuda"
+    echo "  4) EXTRAS           (e) → ver estado, crear snapshot, restaurar, limpiar, fusionar, ayuda"
     echo "  5) SALIR            (q)"
     echo "========================================="
+}
+
+# --- Alerta de publicaciones pendientes (dev adelantada respecto de main) ---
+# --- FUNCIÓN: mostrar_alerta_publicaciones_pendientes ---
+# PROPÓSITO: avisar cuántos commits de DEV_BRANCH faltan publicar en DEFAULT_BRANCH.
+# PARÁMETROS: $1 = contexto opcional ("menu" por defecto, o "cierre").
+# RETORNA: 0 (siempre); imprime aviso + tip sólo si hay commits pendientes.
+# POR QUÉ: evita que el novato olvide correr la opción 3 (PUBLICAR) al terminar.
+# NOTA: en "cierre" distingue si la sesión quedó en DEV_BRANCH o en otra rama.
+mostrar_alerta_publicaciones_pendientes() {
+    local contexto="${1:-menu}" pendientes
+
+    pendientes=$(contar_commits_sin_publicar)
+    case "$pendientes" in
+        ''|*[!0-9]*) pendientes=0 ;;
+    esac
+    [ "$pendientes" -gt 0 ] || return 0
+
+    if [ "$contexto" = "cierre" ] && [ "$(git rev-parse --abbrev-ref HEAD 2>/dev/null)" = "$DEV_BRANCH" ]; then
+        say_warn "Tus cambios quedaron en ${DEV_BRANCH}: hay ${pendientes} cambio(s) sin publicar en ${DEFAULT_BRANCH}."
+        say_tip "Para publicarlos, elegí la opción 3 (PUBLICAR ${DEV_BRANCH} a ${DEFAULT_BRANCH})."
+    elif [ "$contexto" = "cierre" ]; then
+        say_warn "Hay ${pendientes} cambio(s) en ${DEV_BRANCH} sin publicar en ${DEFAULT_BRANCH}."
+        say_tip "Para publicarlos, elegí la opción 3 (PUBLICAR ${DEV_BRANCH} a ${DEFAULT_BRANCH})."
+    else
+        say_warn "Tenés ${pendientes} cambio(s) en ${DEV_BRANCH} sin publicar en ${DEFAULT_BRANCH}."
+        say_tip "Cuando termines, elegí la opción 3 (PUBLICAR ${DEV_BRANCH} a ${DEFAULT_BRANCH})."
+    fi
 }
 
 # --- Menú principal (loop persistente) ---
@@ -182,10 +211,12 @@ mostrar_menu() {
         else
             say_warn "Sesión: inactiva — usá 's' (opción 1) para INICIAR"
         fi
+        mostrar_alerta_publicaciones_pendientes
+        mostrar_resumen_cambios_menu
         echo "------------------------------------------------"
         echo "1) INICIAR sesión        (atajo: s)"
         echo "2) CERRAR sesión         (atajo: c)"
-        echo "3) PUBLICAR ${DEV_BRANCH} a ${DEFAULT_BRANCH} (${DEV_BRANCH} → ${DEFAULT_BRANCH})  [nivel 2]"
+        echo "3) PUBLICAR ${DEV_BRANCH} a ${DEFAULT_BRANCH}"
         echo "4) EXTRAS / HERRAMIENTAS (atajo: e)"
         echo "5) SALIR                 (atajo: q)"
         echo "------------------------------------------------"
@@ -274,14 +305,14 @@ mostrar_menu_extras() {
         echo "------------------------------------------------"
         echo -e "${BLUE}🛠️  EXTRAS / HERRAMIENTAS${NC}"
         echo "------------------------------------------------"
-        echo "1) VER ESTADO"
-        echo "2) RESTAURAR punto"
-        echo "3) SNAPSHOT (rescate)"
-        echo "4) LIMPIAR snapshots"
-        echo "5) ACTUALIZAR ${DEV_BRANCH} con ${DEFAULT_BRANCH} (${DEFAULT_BRANCH} → ${DEV_BRANCH})  [nivel 1]"
-        echo "6) FUSIONAR personalizado"
-        echo "7) AYUDA"
-        echo "0) VOLVER al menú principal"
+        echo "1) Ver estado"
+        echo "2) Restaurar snapshot"
+        echo "3) Crear snapshot"
+        echo "4) Limpiar snapshots"
+        echo "5) Actualizar ${DEV_BRANCH} desde ${DEFAULT_BRANCH}"
+        echo "6) Fusionar ramas manualmente"
+        echo "7) Ayuda"
+        echo "0) Volver al menú principal"
         echo "------------------------------------------------"
         read -r -p "Opción (0-7): " opt || break
         case $opt in

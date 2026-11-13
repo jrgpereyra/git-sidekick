@@ -126,8 +126,8 @@ La configuración es estática dentro del script (prefijos de tags, nombres de r
 - **Solución:** Rediseño final del menú a 5 opciones + submenú Extras:
   1) INICIAR sesión (s)
   2) CERRAR sesión (c)
-  3) PUBLICAR dev a main (dev → main) [nivel 2]
-  4) EXTRAS / HERRAMIENTAS (e) → 1) VER ESTADO, 2) RESTAURAR, 3) SNAPSHOT, 4) LIMPIAR, 5) ACTUALIZAR dev con main, 6) FUSIONAR personalizado, 7) AYUDA, 0) VOLVER
+  3) PUBLICAR dev a main
+  4) EXTRAS / HERRAMIENTAS (e) → 1) Ver estado, 2) Restaurar snapshot, 3) Crear snapshot, 4) Limpiar snapshots, 5) Actualizar dev desde main, 6) Fusionar ramas manualmente, 7) Ayuda, 0) Volver
   5) SALIR (q)
 - **Estado:** ✅ Implementado en v0.4.0.
 
@@ -195,7 +195,7 @@ La configuración es estática dentro del script (prefijos de tags, nombres de r
 | **F3** | Análisis de diff + mensajes en español + bitácora narrativa | 3 días |
 | **F4** | Soporte DDEV/Drupal (snapshot BD, drush cex) | 3 días |
 | **F5** | Tests (`bats-core`), integración y release v2.0.0 | 2 días |
-| **F6** | ✅ Tests `bats-core` (13 tests pasando) | 1 día |
+| **F6** | ✅ Tests `bats-core` (suite actual: 60 tests) | 1 día |
 
 **Total estimado:** ~12 días hábiles
 
@@ -301,7 +301,7 @@ gnpm install                       # después de merge
 | `.git-sidekickrc` parser + load_config | ✅ |
 | `info` command detallado | ✅ |
 | Tono amigable en messages | ✅ |
-| **Tests con `bats-core`** | ⏳ Pendiente |
+| **Tests con `bats-core`** | ✅ (60 tests) |
 | **Plugin Astro** | ⏳ Pendiente (proyecto Astro definido) |
 | **Plugin Drupal/DDEV** | ⏳ Postergado (referencia: `id10-control-simple.sh`) |
 
@@ -310,7 +310,7 @@ gnpm install                       # después de merge
 ## 🚧 Próximas tareas técnicas
 
 - [ ] **Workflow CI/CD (GitHub Actions):**
-  Crear un workflow que ejecute los tests (`bats`), `bash -n` y `shellcheck` en cada push y PR. El badge "tests 27/27" ya está en README, pero falta el workflow real que lo respalde.
+  Crear un workflow que ejecute los tests (`bats`), `bash -n` y `shellcheck` en cada push y PR. El badge "tests 60/60" ya está en README, pero falta el workflow real que lo respalde.
 
 - [ ] **Integración con Astro:**
   Investigar si Astro tiene un flujo de trabajo Git común (ej: builds, despliegues) y diseñar un plugin o script que se integre con `git-sidekick` para automatizar esas tareas.

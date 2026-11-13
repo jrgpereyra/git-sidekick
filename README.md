@@ -7,7 +7,7 @@
 ![License](https://img.shields.io/badge/License-MIT-blue.svg)
 ![Version](https://img.shields.io/badge/version-0.4.0-orange.svg)
 ![Hecho con](https://img.shields.io/badge/hecho%20con-Bash-4979e0.svg)
-![Tests](https://img.shields.io/badge/tests-47%2F47-brightgreen.svg)
+![Tests](https://img.shields.io/badge/tests-60%2F60-brightgreen.svg)
 
 ---
 
@@ -29,21 +29,21 @@ curl -fsSL https://raw.githubusercontent.com/jrgpereyra/git-sidekick/main/git-si
 
 **Tú:** *(cambiás un par de archivos, editás, probás.)*
 
-**Tú:** "Hacé un snapshot de rescate, por las dudas."
+**Tú:** "Hacé un snapshot, por las dudas."
 
-**Agente:** `gk snapshot` → Punto de rescate guardado. No se te va a ir nada.
+**Agente:** `gk snapshot` → Snapshot guardado. No se te va a ir nada.
 
 **Tú:** "Cerrá la sesión y guardá lo que hice."
 
-**Agente:** `gk close` → 3 archivos commiteados. Snapshot de cierre guardado. ¡Listo!
+**Agente:** `gk close` → 3 archivos guardados. Snapshot de cierre guardado. ¡Listo!
 
 ---
 
 ## 🚀 Lo que podés decirle a su agente
 
 - *"Iniciá sesión en dev con la etiqueta carrito"* → arranca una sesión nueva
-- *"Hacé un snapshot de rescate"* → punto de seguridad sin salir del flujo
-- *"Cerrá la sesión con mensaje fix: validación"* → commitea y guarda todo
+- *"Hacé un snapshot"* → punto de seguridad sin salir del flujo
+- *"Cerrá la sesión con mensaje fix: validación"* → guarda los cambios y cierra todo
 - *"Mergeá feature-carrito en main"* → fusiona con verificación remota, stash seguro y aborto atómico
 - *"¿En qué estado está todo?"* → te lo cuenta sin rodeos
 

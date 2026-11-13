@@ -21,6 +21,14 @@ teardown() {
   rm -rf "$test_dir"
 }
 
+crear_dev_adelantada() {
+  git checkout -q -b dev
+  echo "cambio dev" > dev.txt
+  git add dev.txt
+  git commit -q -m "cambio en dev"
+  git checkout -q main
+}
+
 # ── DRY-RUN ──────────────────────────────────────────────
 
 @test "dry-run start no crea tags ni context file" {
@@ -89,20 +97,20 @@ teardown() {
   echo "dev_branch=develop" > .git-sidekickrc
   git branch develop 2>/dev/null
   run bash -c "printf '4\n0\n5\n' | $GKS"
-  echo "$output" | grep -q "ACTUALIZAR develop"
+  echo "$output" | grep -q "Actualizar develop"
   echo "$output" | grep -q "PUBLICAR develop"
 }
 
 @test "git-sidekickrc: uppercase DEV_BRANCH también funciona" {
   echo "DEV_BRANCH=staging" > .git-sidekickrc
   run bash -c "printf '4\n0\n5\n' | $GKS"
-  echo "$output" | grep -q "ACTUALIZAR staging"
+  echo "$output" | grep -q "Actualizar staging"
 }
 
 @test "git-sidekickrc: espacios y comment inline se ignoran" {
   printf '  dev_branch = qa # rama de pruebas  \n' > .git-sidekickrc
   run bash -c "printf '4\n0\n5\n' | $GKS"
-  echo "$output" | grep -q "ACTUALIZAR qa"
+  echo "$output" | grep -q "Actualizar qa"
   ! grep -q "qa # rama" <<< "$output"
 }
 
@@ -139,7 +147,7 @@ teardown() {
 @test "start + close crea 2 tags y limpia context" {
   printf '1\ntest-session\n' | "$GKS" start >/dev/null 2>&1
   echo "cambio de prueba" > prueba.txt
-  printf '\n\nn\n' | "$GKS" close >/dev/null 2>&1
+  printf '\n\n\nn\n' | "$GKS" close >/dev/null 2>&1
 
   # 2 tags: inicio + cierre
   [ "$(git tag --list 'work/*' | wc -l)" -eq 2 ]
@@ -151,7 +159,7 @@ teardown() {
 
 @test "start + close sin cambios también funciona" {
   printf '1\ntest-vacio\n' | "$GKS" start >/dev/null 2>&1
-  printf '\n\nn\n' | "$GKS" close >/dev/null 2>&1
+  printf '\nn\n' | "$GKS" close >/dev/null 2>&1
   [ ! -f ".git-sidekick-context" ]
   [ "$(git tag --list 'work/*' | wc -l)" -eq 2 ]
 }
@@ -160,7 +168,7 @@ teardown() {
 
 @test "context file no se comitea (ignorado del commit)" {
   printf '1\ntest\n' | "$GKS" start >/dev/null 2>&1
-  printf '\n\nn\n' | "$GKS" close >/dev/null 2>&1
+  printf '\nn\n' | "$GKS" close >/dev/null 2>&1
   # El context file no debe aparecer en el historial de commits
   ! git log -p --all 2>/dev/null | grep -q "git-sidekick-context"
 }
@@ -178,6 +186,8 @@ teardown() {
   echo "$init_output" | grep -q "Primeros pasos"
   echo "$init_output" | grep -q "1) INICIAR sesión"
   echo "$init_output" | grep -q "2) CERRAR sesión"
+  echo "$init_output" | grep -q "guardar cambios + snapshot"
+  echo "$init_output" | grep -q "crear snapshot"
   echo "$init_output" | grep -q "gk --dry-run"
   rm -rf "$fresh_dir"
 }
@@ -317,6 +327,8 @@ teardown() {
 
   [ "$status" -eq 0 ]
   echo "$output" | grep -q "Merge dev → main completado"
+  echo "$output" | grep -q "¡Todo listo! Tus cambios pendientes están de vuelta. Podés seguir trabajando."
+  ! echo "$output" | grep -q "fueron restaurados"
   [ -f local.txt ]
   grep -q "nuevo local" local.txt
   grep -q "mod local" main.txt
@@ -438,13 +450,144 @@ teardown() {
   echo "$output" | grep -q "4) EXTRAS / HERRAMIENTAS"
   echo "$output" | grep -q "5) SALIR"
   ! echo "$output" | grep -q "Opción (1-11)"
+  ! echo "$output" | grep -q "\[nivel"
 }
 
 @test "submenú Extras abre con 4 y vuelve al menú principal con 0" {
   output=$(printf '4\n0\n5\n' | "$GKS" 2>&1 || true)
   echo "$output" | grep -q "EXTRAS / HERRAMIENTAS"
-  echo "$output" | grep -q "ACTUALIZAR dev con main"
+  echo "$output" | grep -q "1) Ver estado"
+  echo "$output" | grep -q "2) Restaurar snapshot"
+  echo "$output" | grep -q "3) Crear snapshot"
+  echo "$output" | grep -q "Actualizar dev desde main"
+  echo "$output" | grep -q "Fusionar ramas manualmente"
   echo "$output" | grep -q "SALIR"
+  ! echo "$output" | grep -q "\[nivel"
+}
+
+@test "ayuda unifica terminología snapshot y quita jerga de rescate" {
+  output=$("$GKS" help 2>&1 || true)
+  echo "$output" | grep -q "Crear un snapshot"
+  echo "$output" | grep -q "Restaurar un snapshot"
+  echo "$output" | grep -q "Limpiar snapshots viejos"
+  echo "$output" | grep -q "1 = simple · 2 = estricto"
+  ! echo "$output" | grep -q "Rescate rápido"
+}
+
+# ── PUBLICACIONES PENDIENTES (UX) ───────────────────────────
+
+@test "menú avisa cuando dev tiene commits sin publicar" {
+  crear_dev_adelantada
+  output=$(printf '5\n' | "$GKS" 2>&1 || true)
+  echo "$output" | grep -q "sin publicar en main"
+  echo "$output" | grep -q "1 cambio(s)"
+  echo "$output" | grep -q "opción 3"
+}
+
+@test "menú no avisa cuando dev y main están al día" {
+  git branch dev
+  output=$(printf '5\n' | "$GKS" 2>&1 || true)
+  ! echo "$output" | grep -q "sin publicar"
+}
+
+@test "menú no falla si no existe la rama dev" {
+  output=$(printf '5\n' | "$GKS" 2>&1 || true)
+  echo "$output" | grep -q "1) INICIAR sesión"
+  ! echo "$output" | grep -q "sin publicar"
+  ! grep -qi "fatal:" <<< "$output"
+}
+
+@test "alerta respeta DEV_BRANCH configurada" {
+  echo "dev_branch=develop" > .git-sidekickrc
+  git checkout -q -b develop
+  echo "cambio develop" > develop.txt
+  git add develop.txt
+  git commit -q -m "cambio en develop"
+  git checkout -q main
+
+  output=$(printf '5\n' | "$GKS" 2>&1 || true)
+  echo "$output" | grep -q "en develop sin publicar en main"
+  echo "$output" | grep -q "PUBLICAR develop a main"
+}
+
+@test "close recuerda publicar cuando la sesión quedó en dev" {
+  git checkout -q -b dev
+  echo "cambio dev" > dev.txt
+  git add dev.txt
+  git commit -q -m "cambio en dev"
+
+  output=$(printf '\nn\n' | "$GKS" close 2>&1 || true)
+  echo "$output" | grep -q "Tus cambios quedaron en dev"
+  echo "$output" | grep -q "sin publicar en main"
+  echo "$output" | grep -q "opción 3 (PUBLICAR dev a main)"
+}
+
+@test "close no recuerda publicar si no hay pendientes" {
+  output=$(printf '\nn\n' | "$GKS" close 2>&1 || true)
+  ! echo "$output" | grep -q "sin publicar"
+}
+
+@test "close desde otra rama no dice que los cambios quedaron en dev" {
+  crear_dev_adelantada
+  output=$(printf '\nn\n' | "$GKS" close 2>&1 || true)
+  echo "$output" | grep -q "Hay 1 cambio(s) en dev sin publicar en main"
+  ! echo "$output" | grep -q "Tus cambios quedaron en dev"
+}
+
+# ── MENÚ PASIVO Y CIERRE NO COERCITIVO ──────────────────────
+
+@test "menú con cambios muestra resumen y permite abrir Extras sin commit" {
+  echo "pendiente" > pendiente.txt
+
+  output=$(printf '4\n0\n5\n' | "$GKS" 2>&1 || true)
+
+  echo "$output" | grep -q "archivo(s) con cambios sin guardar"
+  echo "$output" | grep -q "pendiente.txt (Nuevo — archivo recién creado)"
+  echo "$output" | grep -Fq "[2] para cerrar sesión · [4] para ver detalle."
+  ! grep -Fq "Para guardarlos, elegí" <<< "$output"
+  echo "$output" | grep -q "EXTRAS / HERRAMIENTAS"
+  ! echo "$output" | grep -q "Mensaje de commit"
+  [ -n "$(git status --porcelain pendiente.txt)" ]
+}
+
+@test "menú con cambios permite salir sin commitear" {
+  echo "pendiente" > pendiente.txt
+  before=$(git rev-parse HEAD)
+
+  output=$(printf '5\n' | "$GKS" 2>&1 || true)
+
+  echo "$output" | grep -q "archivo(s) con cambios sin guardar"
+  [ "$(git rev-parse HEAD)" = "$before" ]
+  [ -n "$(git status --porcelain pendiente.txt)" ]
+}
+
+@test "close con cambios permite cancelar y volver al menú" {
+  echo "pendiente" > pendiente.txt
+  before=$(git rev-parse HEAD)
+
+  output=$(printf '2\n4\n5\n' | "$GKS" 2>&1 || true)
+
+  echo "$output" | grep -q "Vas a guardar 1 archivo(s) con cambios"
+  echo "$output" | grep -q "No se guardó nada"
+  [ "$(git rev-parse HEAD)" = "$before" ]
+  [ -n "$(git status --porcelain pendiente.txt)" ]
+}
+
+@test "close sin cambios no pide mensaje de commit" {
+  output=$(printf '\nn\n' | "$GKS" close 2>&1 || true)
+
+  echo "$output" | grep -q "No hay cambios para guardar"
+  ! echo "$output" | grep -q "Mensaje de commit"
+}
+
+@test "close con cambios pide confirmación y mensaje de commit" {
+  echo "pendiente" > pendiente.txt
+
+  output=$(printf '\nprueba commit\n\nn\n' | "$GKS" close 2>&1 || true)
+
+  echo "$output" | grep -q "Vas a guardar 1 archivo(s) con cambios"
+  git log --oneline | grep -q "prueba commit"
+  [ -z "$(git status --porcelain pendiente.txt)" ]
 }
 
 # ── STATUS CONVERSACIONAL ───────────────────────────────────
