@@ -21,6 +21,7 @@
 - [Comandos disponibles](#comandos-disponibles)
 - [Merge protegido: garantías de seguridad](#merge-protegido-garantías-de-seguridad)
 - [Uso con asistentes de IA](#uso-con-asistentes-de-ia)
+- [Servidor MCP opcional (solo lectura)](#servidor-mcp-opcional-solo-lectura)
 - [Ejemplos de terminal](#ejemplos-de-terminal)
 - [Versionado](#versionado)
 - [Testing](#testing)
@@ -416,6 +417,164 @@ Script:  📍 Rama actual: [feature/carrito]
 ```
 
 > 💡 **Tip de equipo:** podés compartir el `.git-worklog.md` generado para que todos vean el historial de sesiones, incluso quienes no usan terminal.
+
+---
+
+## Servidor MCP opcional (solo lectura)
+
+> **Opcional.** `gk` en la terminal no cambia. El agente puede instalar y configurar todo esto por vos; acá queda el detalle técnico por si querés revisarlo o hacerlo a mano.
+
+Copiá y pegá este mensaje en tu agente:
+
+> "Instalá git-sidekick desde https://github.com/jrgpereyra/git-sidekick para usarlo como gk en mi terminal, y configurá su servidor MCP de solo lectura. Pedime permiso antes de tocar la configuración de mi agente y explicame qué hiciste."
+
+El servidor vive en `mcp/` y se comunica directo con el cliente MCP por **stdio**. No modifica el repositorio. Si querés revisar el detalle técnico o hacerlo a mano, está al final en [Instalación y configuración manual](#instalación-y-configuración-manual).
+
+### Qué hace y qué no
+
+- Lee rama, HEAD, upstream local, ahead/behind, archivos, conflictos, configuración, sesión, bitácora y snapshots.
+- No hace `fetch`, `pull`, `push`, `commit`, `tag`, `branch`, `merge` ni `reset`.
+- No ejecuta comandos de `gk` ni abre una terminal: solo consulta Git en modo lectura.
+- No escribe archivos en el repo ni toca el index.
+
+### Herramientas
+
+| Tool | Devuelve |
+|---|---|
+| `git_sidekick_status` | Rama, HEAD, upstream local, ahead/behind, archivos, conflictos y sesión |
+| `git_sidekick_info` | Repo, rama, remoto, configuración, último snapshot, sesión y bitácora |
+| `git_sidekick_list_branches` | Ramas locales, actual, recomendada, upstream y ahead/behind |
+| `git_sidekick_list_snapshots` | Tags de snapshot del prefijo configurado |
+
+Todas aceptan `repo_path` opcional. `git_sidekick_status` acepta `file_limit`
+(por defecto 200) y `git_sidekick_list_snapshots` acepta `limit` (por defecto 50).
+
+### Resolución del repositorio
+
+Por defecto usa el **directorio del proyecto abierto**. Si necesitás otro caso:
+
+- `GIT_SIDEKICK_REPO`: fija un repositorio concreto.
+- `repo_path` en una tool: consulta otro repositorio puntual; si está presente, tiene prioridad sobre las otras opciones.
+
+Se acepta la raíz del repo o un subdirectorio; el servidor normaliza al
+`git rev-parse --show-toplevel`. Si querés limitar el acceso, definí
+`GIT_SIDEKICK_ALLOWED_ROOTS` con rutas separadas por `:`. Si la variable no
+existe, no se aplica allowlist.
+
+### Archivos que lee como texto plano
+
+- `.git-sidekickrc`: solo `default_branch`, `dev_branch` y `snapshot_prefix`.
+- `.git-sidekick-context`: `rama`, `fecha_inicio`, `accion`, `tag_inicio`.
+- `.git-worklog.md`: cuenta líneas que empiezan con `## `.
+
+Nunca se hace `source`, `eval`, `bash -c` ni expansión de variables sobre estos
+archivos. Los valores se tratan como texto literal. Si un archivo es un symlink
+que sale del repositorio, se ignora.
+
+### Límites y seguridad
+
+- No ejecuta comandos de `gk` ni una terminal: solo consulta Git en modo lectura.
+- Solo comandos de lectura.
+- Sin red: no se ejecuta `fetch`, `pull`, `push` ni `clone`.
+- `GIT_OPTIONAL_LOCKS=0` y `--no-optional-locks` para no tocar el index.
+- `GIT_TERMINAL_PROMPT=0` para no quedar esperando credenciales.
+- Timeout de 5 segundos por comando.
+- Límites de lectura: 64 KB para `.git-sidekickrc` y `.git-sidekick-context`; 2 MB para `.git-worklog.md`.
+- Listas de archivos, ramas y snapshots con truncado explícito.
+- URLs HTTP(S) con credenciales se devuelven redactadas.
+- Los mensajes de diagnóstico van por stderr; stdout queda libre para el protocolo MCP.
+
+### Qué calcula el servidor por su cuenta
+
+| Dato | Servidor MCP | `gk` |
+|---|---|---|
+| Rama y HEAD | Git directo | Git directo |
+| Ahead/behind | Refs locales, **sin fetch** | `gk status` hace fetch; puede estar más actualizado |
+| Archivos y conflictos | `git status --porcelain` | Lo traduce a lenguaje humano |
+| Sesión | Lee `.git-sidekick-context` | La escribe y la limpia |
+| Snapshots | Tags del prefijo configurado | Los crea y restaura |
+| Bitácora | Cuenta encabezados `## ` | La escribe al cerrar sesión |
+| Ramas configuradas | Lee `.git-sidekickrc` como texto | Lo carga con su parser |
+| Recomendación conversacional | No la genera; devuelve datos crudos | La genera |
+
+Consecuencia importante: `ahead/behind` refleja lo último que Git conoce
+localmente. Si necesitás datos frescos del servidor, primero hay que hacer
+`git fetch` desde el flujo humano u otra herramienta.
+
+### Tests
+
+```bash
+mcp/.venv/bin/python -m unittest discover -s mcp/tests -v
+bats tests/core.bats
+```
+
+Los tests del servidor cubren repo limpio/sucio, sin commits, detached HEAD, sin
+remoto, subdirectorios, renombres con acentos, conflictos, worklog, snapshots,
+redacción de credenciales, allowlist opcional, timeout y verificación de que las
+cuatro tools no escriben en el repositorio.
+
+### Instalación y configuración manual
+
+El agente puede hacer todo esto por vos. Si preferís revisarlo o hacerlo a mano:
+
+#### Entorno Python
+
+Requisitos: Python 3.10+ y Git.
+
+```bash
+cd mcp
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+```
+
+El venv `mcp/.venv/` está ignorado por Git.
+
+#### Configuración en el cliente MCP (OpenCode)
+
+Fragmento dentro de `opencode.json`:
+
+```json
+{
+  "mcp": {
+    "git-sidekick": {
+      "type": "local",
+      "command": [
+        "/ruta/a/git-sidekick/mcp/.venv/bin/python",
+        "/ruta/a/git-sidekick/mcp/server.py"
+      ],
+      "enabled": true
+    }
+  }
+}
+```
+
+Sin `environment`, usa el directorio del proyecto abierto. Para fijar un repositorio:
+
+```json
+"environment": { "GIT_SIDEKICK_REPO": "/ruta/al/repositorio" }
+```
+
+Variables de entorno especiales:
+
+- `GIT_SIDEKICK_REPO`: fija un repositorio concreto.
+- `GIT_SIDEKICK_ALLOWED_ROOTS`: limita el acceso a rutas separadas por `:`.
+
+También podés pasar `repo_path` en cada tool para consultar un repositorio
+puntual. Adaptá el formato si tu cliente MCP no es OpenCode. Después de guardar,
+reiniciá el cliente.
+
+#### Comandos internos
+
+Para levantar el servidor directo:
+
+```bash
+mcp/.venv/bin/python mcp/server.py
+```
+
+El servidor se comunica directo con el cliente MCP por stdio, sin imprimir
+mensajes de terminal en stdout.
+
+> Referencia adicional del servidor: [`mcp/README.md`](mcp/README.md).
 
 ---
 

@@ -49,6 +49,20 @@ curl -fsSL https://raw.githubusercontent.com/jrgpereyra/git-sidekick/main/git-si
 
 No necesitás memorizar comandos. Hablabas en español y el agente lo traduce a Git.
 
+---
+
+## 🔒 Opcional: servidor MCP de solo lectura
+
+Si querés, copiá y pegá este mensaje en tu agente:
+
+> "Instalá git-sidekick desde https://github.com/jrgpereyra/git-sidekick para usarlo como gk en mi terminal, y configurá su servidor MCP de solo lectura. Pedime permiso antes de tocar la configuración de mi agente y explicame qué hiciste."
+
+Ese servidor **solo lee el repo**: no hace commits, no crea ramas y no toca tus archivos. El agente arma su entorno aparte y **te pide permiso antes de tocar la configuración de tu agente**. `gk` en la terminal sigue usándose igual: esto es opcional.
+
+¿Querés el detalle técnico? Está en [`DOCS.md`](DOCS.md#servidor-mcp-opcional-solo-lectura).
+
+---
+
 ### 🔒 Merges sin sustos
 
 Antes y durante cada fusión, `git-sidekick`:
