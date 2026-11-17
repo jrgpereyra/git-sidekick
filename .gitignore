@@ -11,5 +11,10 @@ backups/
 Plan.Comentarios.Post.Refactorizacion.md
 git-sidekick.sh.bak
 
+# Entorno local del servidor MCP
+mcp/.venv/
+__pycache__/
+*.pyc
+
 # NOTA: .git-worklog.md NO se ignora; close_session lo commitea como bitácora versionada.
 
